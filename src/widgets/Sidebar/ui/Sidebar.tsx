@@ -2,10 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChinaFlag } from '@/shared/ui/icons/ChinaFlag';
-
 const CATEGORIES = [
-  { href: '/china', label: 'Китайские товары', icon: <ChinaFlag size={24} />, active: true },
+  { href: '/electronics', label: 'Электроника', icon: <span className="text-base">📱</span>, active: true },
   { href: '/stroy', label: 'Стройматериалы',   icon: <span className="text-base">🏗</span>,  active: false },
   { href: '/bio',   label: 'Биохакинг',        icon: <span className="text-base">💊</span>,  active: false },
 ];
@@ -21,7 +19,7 @@ export function Sidebar() {
       </div>
       <nav className="p-2 flex-1">
         {CATEGORIES.map((cat) => {
-          const isActive = pathname === cat.href || (pathname === '/' && cat.href === '/china');
+          const isActive = pathname === cat.href || (pathname === '/' && cat.href === '/electronics');
           return (
             <Link
               key={cat.href}

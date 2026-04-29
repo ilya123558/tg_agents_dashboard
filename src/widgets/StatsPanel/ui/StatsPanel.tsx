@@ -1,9 +1,11 @@
 'use client';
 
 import type { Lead } from '@/entities/Lead';
+import type { Seller } from '@/entities/Seller';
 
 interface StatsPanelProps {
   leads: Lead[];
+  sellers?: Seller[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -13,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
   'не ответил': 'text-red-400',
 };
 
-export function StatsPanel({ leads }: StatsPanelProps) {
+export function StatsPanel({ leads, sellers = [] }: StatsPanelProps) {
   const total = leads.length;
   const byStatus = leads.reduce<Record<string, number>>((acc, l) => {
     acc[l.status] = (acc[l.status] ?? 0) + 1;
@@ -29,10 +31,11 @@ export function StatsPanel({ leads }: StatsPanelProps) {
     { label: 'Ответили', value: byStatus['ответил'] ?? 0, color: STATUS_COLORS['ответил'] },
     { label: 'Не ответили', value: byStatus['не ответил'] ?? 0, color: STATUS_COLORS['не ответил'] },
     { label: 'Групп', value: groups, color: 'text-purple-400' },
+    { label: 'Продавцов', value: sellers.length, color: 'text-orange-400' },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
       {stats.map((s) => (
         <div key={s.label} className="bg-[#1a1a1a] border border-white/5 rounded-xl p-4">
           <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>

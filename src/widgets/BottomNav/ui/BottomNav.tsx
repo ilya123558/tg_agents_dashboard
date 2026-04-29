@@ -2,10 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChinaFlag } from '@/shared/ui/icons/ChinaFlag';
-
 const CATEGORIES = [
-  { href: '/china', label: 'Китай',   icon: <ChinaFlag size={28} />, active: true },
+  { href: '/electronics', label: 'Электроника', icon: <span className="text-xl">📱</span>, active: true },
   { href: '/stroy', label: 'Стройка', icon: <span className="text-xl">🏗</span>,  active: false },
   { href: '/bio',   label: 'Био',     icon: <span className="text-xl">💊</span>,  active: false },
 ];
@@ -16,7 +14,7 @@ export function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111] border-t border-white/5 flex z-50">
       {CATEGORIES.map((cat) => {
-        const isActive = pathname === cat.href || (pathname === '/' && cat.href === '/china');
+        const isActive = pathname === cat.href || (pathname === '/' && cat.href === '/electronics');
         return (
           <Link
             key={cat.href}
