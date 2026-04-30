@@ -10,4 +10,6 @@ export interface Seller {
   author: string | null;
   comment: string;
   status: SellerStatus;
+  category: string;
+  products: string;
 }

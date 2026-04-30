@@ -26,7 +26,7 @@ export default function ChinaPage() {
 
   return (
     <>
-      <header className="border-b border-white/5 px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 bg-[#0f0f0f]/90 backdrop-blur-sm z-10">
+      <header className="border-b border-white/5 px-4 md:px-6 py-4 flex items-center justify-between sticky top-0 bg-[#0f0f0f]/90 backdrop-blur-sm z-30">
         <div className="flex items-center gap-2">
           <span className="text-lg">📱</span>
           <span className="font-medium text-white text-sm">Электроника</span>

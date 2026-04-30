@@ -8,7 +8,7 @@ import { motion, AnimatePresence, useInView } from 'framer-motion';
 import Link from 'next/link';
 import type { Lead } from '@/entities/Lead';
 import type { Seller } from '@/entities/Seller';
-import { CATS, classify, avatarGradient } from '@/shared/lib/classify';
+import { CATS, resolveCategory, avatarGradient } from '@/shared/lib/classify';
 
 /* ─── Types ─────────────────────────────────────────────── */
 
@@ -41,8 +41,8 @@ function uname(url: string | null) {
 function buildRows(pool: Seller[], leads: Lead[]): Row[] {
   const map = new Map<string, Row>();
   for (const def of CATS) map.set(def.name, { def, sellerItems: [], leadItems: [] });
-  for (const s of pool)  map.get(classify(s.text, s.comment))!.sellerItems.push(s);
-  for (const l of leads) map.get(classify(l.text, l.comment))!.leadItems.push(l);
+  for (const s of pool)  map.get(resolveCategory(s.category, s.text, s.comment))!.sellerItems.push(s);
+  for (const l of leads) map.get(resolveCategory(l.category, l.text, l.comment))!.leadItems.push(l);
   return [...map.values()]
     .filter(r => r.sellerItems.length > 0 || r.leadItems.length > 0)
     .sort((a, b) => {
@@ -227,7 +227,8 @@ function WebRow({ row, index, sc }: { row: Row; index: number; sc: string }) {
   const centerRef    = useRef<HTMLDivElement>(null);
   const sellerRefs   = useRef<(HTMLElement | null)[]>([]);
   const leadRefs     = useRef<(HTMLElement | null)[]>([]);
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads]   = useState<Thread[]>([]);
+  const [expanded, setExpanded] = useState(false);
 
   const isMatch = row.sellerItems.length > 0 && row.leadItems.length > 0;
   const isW     = sc === 'purple';
@@ -296,28 +297,131 @@ function WebRow({ row, index, sc }: { row: Row; index: number; sc: string }) {
         ))}
       </svg>
       <div className="relative z-10 grid grid-cols-[2fr_auto_2fr] items-center gap-6 px-6">
+        {/* Sellers */}
         <div className="flex flex-col items-end gap-2.5">
           {row.sellerItems.slice(0, MAX_DESKTOP).map((s, i) => (
             <div key={s.id} ref={(el) => { sellerRefs.current[i] = el; }}>
               <NodeButton href={`/electronics/seller/${s.id}`} author={s.author} type="seller" isW={isW} />
             </div>
           ))}
-          {row.sellerItems.length > MAX_DESKTOP && <span className={`text-[10px] pr-1 ${isW ? 'text-purple-800' : 'text-orange-800'}`}>+{row.sellerItems.length - MAX_DESKTOP} ещё</span>}
+          {row.sellerItems.length > MAX_DESKTOP && (
+            <span className={`text-[10px] font-medium pr-1 ${isW ? 'text-purple-800' : 'text-orange-800'}`}>
+              +{row.sellerItems.length - MAX_DESKTOP} ещё
+            </span>
+          )}
           {row.sellerItems.length === 0 && <span className="text-[11px] text-gray-800 italic">нет продавцов</span>}
         </div>
-        <div ref={centerRef} className="flex justify-center">
-          <CatNode def={row.def} isMatch={isMatch} />
+
+        {/* Center */}
+        <div className="flex flex-col items-center">
+          <div ref={centerRef}>
+            <CatNode def={row.def} isMatch={isMatch} />
+          </div>
         </div>
+
+        {/* Leads */}
         <div className="flex flex-col items-start gap-2.5">
           {row.leadItems.slice(0, MAX_DESKTOP).map((l, i) => (
             <div key={l.id} ref={(el) => { leadRefs.current[i] = el; }}>
               <NodeButton href={`/electronics/lead/${l.id}`} author={l.author} type="lead" />
             </div>
           ))}
-          {row.leadItems.length > MAX_DESKTOP && <span className="text-[10px] pl-1 text-blue-800">+{row.leadItems.length - MAX_DESKTOP} ещё</span>}
+          {row.leadItems.length > MAX_DESKTOP && (
+            <span className="text-[10px] font-medium pl-1 text-blue-800">
+              +{row.leadItems.length - MAX_DESKTOP} ещё
+            </span>
+          )}
           {row.leadItems.length === 0 && <span className="text-[11px] text-gray-800 italic">нет лидов</span>}
         </div>
       </div>
+
+      {/* Expand button — bottom of card, not in center column */}
+      {(row.sellerItems.length > MAX_DESKTOP || row.leadItems.length > MAX_DESKTOP) && (
+        <div className="relative z-10 flex justify-end px-6 mt-2 mb-1">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.93 }}
+            onClick={() => setExpanded(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-semibold transition-colors ${
+              expanded
+                ? 'border-white/20 bg-white/[0.06] text-gray-300 hover:bg-white/[0.1]'
+                : isMatch
+                ? 'border-green-500/25 bg-green-500/[0.08] text-green-400 hover:bg-green-500/[0.14]'
+                : 'border-white/10 bg-white/[0.04] text-gray-500 hover:bg-white/[0.08]'
+            }`}
+          >
+            <motion.span
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.22 }}
+              className="leading-none"
+            >
+              ↓
+            </motion.span>
+            {expanded ? 'свернуть' : 'все'}
+          </motion.button>
+        </div>
+      )}
+
+      {/* Expandable full list */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            className="overflow-hidden"
+          >
+            <div className={`mx-4 mt-3 rounded-xl border p-4 ${
+              isMatch ? 'border-green-500/10 bg-green-500/[0.03]' : 'border-white/[0.05] bg-white/[0.02]'
+            }`}>
+              <div className="grid grid-cols-2 gap-6">
+
+                {/* All sellers */}
+                <div>
+                  <div className={`text-[9px] uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5 ${isW ? 'text-purple-600' : 'text-orange-600'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isW ? 'bg-purple-500' : 'bg-orange-500'}`} />
+                    {isW ? 'Оптовики' : 'Продавцы'} · {row.sellerItems.length}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {row.sellerItems.map((s, i) => (
+                      <motion.div
+                        key={s.id}
+                        initial={{ opacity: 0, scale: 0.8, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ delay: i * 0.018, type: 'spring', stiffness: 420, damping: 26 }}
+                      >
+                        <NodeButton href={`/electronics/seller/${s.id}`} author={s.author} type="seller" isW={isW} />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* All leads */}
+                <div>
+                  <div className="text-[9px] uppercase tracking-widest font-bold text-blue-600 mb-3 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Лиды · {row.leadItems.length}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {row.leadItems.map((l, i) => (
+                      <motion.div
+                        key={l.id}
+                        initial={{ opacity: 0, scale: 0.8, y: 4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        transition={{ delay: i * 0.018, type: 'spring', stiffness: 420, damping: 26 }}
+                      >
+                        <NodeButton href={`/electronics/lead/${l.id}`} author={l.author} type="lead" />
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -329,7 +433,8 @@ function WebRowMobile({ row, index, sc }: { row: Row; index: number; sc: string 
   const centerRef    = useRef<HTMLDivElement>(null);
   const sellerRefs   = useRef<(HTMLElement | null)[]>([]);
   const leadRefs     = useRef<(HTMLElement | null)[]>([]);
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads]   = useState<Thread[]>([]);
+  const [expanded, setExpanded] = useState(false);
   const inView = useInView(containerRef, { once: true, margin: '-30px' });
 
   const isMatch = row.sellerItems.length > 0 && row.leadItems.length > 0;
@@ -536,7 +641,113 @@ function WebRowMobile({ row, index, sc }: { row: Row; index: number; sc: string 
             <span className="text-[11px] text-gray-800 italic">нет лидов</span>
           )}
         </div>
+
+        {/* Expand button — bottom, not in center */}
+        {(row.sellerItems.length > MAX_MOBILE || row.leadItems.length > MAX_MOBILE) && (
+          <motion.button
+            initial={{ opacity: 0, y: 6 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: index * 0.05 + 0.5, type: 'spring', stiffness: 360 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={() => setExpanded(v => !v)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-[10px] font-semibold transition-colors self-end ${
+              expanded
+                ? 'border-white/20 bg-white/[0.06] text-gray-300'
+                : isMatch
+                ? 'border-green-500/25 bg-green-500/[0.08] text-green-400'
+                : 'border-white/10 bg-white/[0.04] text-gray-500'
+            }`}
+          >
+            <motion.span
+              animate={{ rotate: expanded ? 180 : 0 }}
+              transition={{ duration: 0.22 }}
+              className="leading-none"
+            >
+              ↓
+            </motion.span>
+            {expanded ? 'свернуть' : 'все'}
+          </motion.button>
+        )}
       </div>
+
+      {/* Mobile expandable full list */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+            className="overflow-hidden"
+          >
+            <div className={`mx-3 mb-4 rounded-xl border p-3 ${
+              isMatch ? 'border-green-500/10 bg-green-500/[0.03]' : 'border-white/[0.05] bg-white/[0.02]'
+            }`}>
+              <div className="grid grid-cols-2 gap-4">
+
+                {/* All sellers */}
+                <div>
+                  <div className={`text-[9px] uppercase tracking-widest font-bold mb-2.5 flex items-center gap-1.5 ${isW ? 'text-purple-600' : 'text-orange-600'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isW ? 'bg-purple-500' : 'bg-orange-500'}`} />
+                    {isW ? 'Оптовики' : 'Продавцы'} · {row.sellerItems.length}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {row.sellerItems.map((s, i) => (
+                      <motion.div
+                        key={s.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.025, type: 'spring', stiffness: 380, damping: 26 }}
+                      >
+                        <Link href={`/electronics/seller/${s.id}`}>
+                          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border text-[11px] font-medium truncate ${
+                            isW ? 'border-purple-500/20 bg-purple-500/[0.06] text-purple-300'
+                                : 'border-orange-500/20 bg-orange-500/[0.06] text-orange-300'
+                          }`}>
+                            <div className={`w-4 h-4 rounded-full bg-gradient-to-br ${avatarGradient(uname(s.author))} flex items-center justify-center text-[8px] font-bold text-white shrink-0`}>
+                              {uname(s.author)[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate">@{uname(s.author)}</span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* All leads */}
+                <div>
+                  <div className="text-[9px] uppercase tracking-widest font-bold text-blue-600 mb-2.5 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Лиды · {row.leadItems.length}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {row.leadItems.map((l, i) => (
+                      <motion.div
+                        key={l.id}
+                        initial={{ opacity: 0, x: 8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.025, type: 'spring', stiffness: 380, damping: 26 }}
+                      >
+                        <Link href={`/electronics/lead/${l.id}`}>
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] text-blue-300 text-[11px] font-medium truncate">
+                            <div className={`w-4 h-4 rounded-full bg-gradient-to-br ${avatarGradient(uname(l.author))} flex items-center justify-center text-[8px] font-bold text-white shrink-0`}>
+                              {uname(l.author)[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate">@{uname(l.author)}</span>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

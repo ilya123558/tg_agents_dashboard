@@ -25,6 +25,12 @@ export function classify(text: string, comment: string): string {
   return 'Другое';
 }
 
+/** Использует LLM-категорию если она есть, иначе regex-fallback */
+export function resolveCategory(category: string, text: string, comment: string): string {
+  if (category && CATS.some(c => c.name === category)) return category;
+  return classify(text, comment);
+}
+
 export function getCatDef(name: string): CatDef {
   return CATS.find((c) => c.name === name) ?? CATS[CATS.length - 1];
 }

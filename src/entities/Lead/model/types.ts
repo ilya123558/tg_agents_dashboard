@@ -9,4 +9,6 @@ export interface Lead {
   author: string | null;
   comment: string;
   status: LeadStatus;
+  category: string;
+  products: string;
 }

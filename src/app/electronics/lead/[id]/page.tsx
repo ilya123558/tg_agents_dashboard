@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useGetLeadsQuery, useUpdateLeadStatusMutation } from '@/entities/Lead';
 import { useGetSellersQuery } from '@/entities/Seller';
-import { classify, getCatDef, avatarGradient } from '@/shared/lib/classify';
+import { resolveCategory, getCatDef, avatarGradient } from '@/shared/lib/classify';
 import type { Seller } from '@/entities/Seller';
 
 function formatDate(d: string | null) {
@@ -72,9 +72,9 @@ export default function LeadDetailPage() {
 
   const lead        = leadsData?.leads.find((l) => l.id === id);
   const allSellers  = sellersData?.sellers ?? [];
-  const category    = lead ? classify(lead.text, lead.comment) : '';
+  const category    = lead ? resolveCategory(lead.category, lead.text, lead.comment) : '';
   const catDef      = getCatDef(category);
-  const related     = allSellers.filter((s) => classify(s.text, s.comment) === category);
+  const related     = allSellers.filter((s) => resolveCategory(s.category, s.text, s.comment) === category);
   const un          = uname(lead?.author ?? null);
   const grad        = avatarGradient(un);
 
