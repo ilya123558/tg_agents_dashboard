@@ -4,7 +4,7 @@ export interface Seller {
   id: string;
   text: string;
   group: string;
-  product: string;
+  wholesale: boolean;
   date: string | null;
   link: string | null;
   author: string | null;

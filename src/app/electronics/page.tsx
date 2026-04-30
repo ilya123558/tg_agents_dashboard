@@ -7,8 +7,9 @@ import { StatsPanel } from '@/widgets/StatsPanel';
 import { LeadsTable } from '@/widgets/LeadsTable';
 import { SellersTable } from '@/widgets/SellersTable';
 import { GroupsStats } from '@/widgets/GroupsStats';
+import { ConnectionSchema } from '@/widgets/ConnectionSchema';
 
-type Tab = 'leads' | 'sellers';
+type Tab = 'leads' | 'sellers' | 'schema';
 
 export default function ChinaPage() {
   const [tab, setTab] = useState<Tab>('leads');
@@ -80,6 +81,16 @@ export default function ChinaPage() {
                   <span className="ml-1.5 text-xs text-gray-600">{sellersData.sellers.length}</span>
                 )}
               </button>
+              <button
+                onClick={() => setTab('schema')}
+                className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                  tab === 'schema'
+                    ? 'border-purple-500 text-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                Связи
+              </button>
             </div>
 
             {tab === 'leads' && leadsData && (
@@ -102,6 +113,13 @@ export default function ChinaPage() {
                   <GroupsStats leads={sellersData.sellers} label="продавцов" />
                 </div>
               </div>
+            )}
+
+            {tab === 'schema' && leadsData && sellersData && (
+              <ConnectionSchema
+                leads={leadsData.leads}
+                sellers={sellersData.sellers}
+              />
             )}
           </>
         )}

@@ -24,7 +24,7 @@ export async function GET() {
         id: page.id,
         text: p['Текст']?.title?.[0]?.plain_text ?? '',
         group: p['Группа']?.rich_text?.[0]?.plain_text ?? '',
-        product: p['Товар']?.rich_text?.[0]?.plain_text ?? '',
+        wholesale: p['Оптовик']?.checkbox ?? false,
         date: p['Дата']?.date?.start ?? null,
         link: p['Ссылка на сообщение']?.url ?? null,
         author: p['Автор']?.url ?? null,

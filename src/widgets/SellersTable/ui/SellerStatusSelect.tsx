@@ -4,9 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { SellerStatus } from '@/entities/Seller';
 
 const OPTIONS: { value: SellerStatus; label: string; color: string; dot: string }[] = [
-  { value: 'новый',    label: 'Новый',    color: 'text-blue-400',   dot: 'bg-blue-400' },
-  { value: 'в работе', label: 'В работе', color: 'text-yellow-400', dot: 'bg-yellow-400' },
-  { value: 'готово',   label: 'Готово',   color: 'text-green-400',  dot: 'bg-green-400' },
+  { value: 'новый', label: 'Новый', color: 'text-blue-400', dot: 'bg-blue-400' },
 ];
 
 interface SellerStatusSelectProps {

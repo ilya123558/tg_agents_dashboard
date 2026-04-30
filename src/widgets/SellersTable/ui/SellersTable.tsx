@@ -6,7 +6,8 @@ import type { Seller, SellerStatus } from '@/entities/Seller';
 import { useUpdateSellerStatusMutation } from '@/entities/Seller';
 import { SellerStatusSelect } from './SellerStatusSelect';
 
-const STATUSES: (SellerStatus | 'все')[] = ['все', 'новый', 'в работе', 'готово'];
+type FilterType = 'все' | 'новый' | 'оптовики';
+const FILTERS: FilterType[] = ['все', 'новый', 'оптовики'];
 const LONG_TEXT = 120;
 type SortDir = 'desc' | 'asc';
 
@@ -16,6 +17,16 @@ function sortByDate(items: Seller[], dir: SortDir) {
     const tb = b.date ? new Date(b.date).getTime() : 0;
     return dir === 'desc' ? tb - ta : ta - tb;
   });
+}
+
+function WholesaleBadge({ wholesale }: { wholesale: boolean }) {
+  if (!wholesale) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full
+                     bg-purple-500/10 text-purple-400 border border-purple-500/20 shrink-0">
+      🏭 Оптовик
+    </span>
+  );
 }
 
 function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
@@ -35,12 +46,18 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
       className="bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
                  hover:border-white/[0.13] hover:bg-[#1a1a1a] transition-colors duration-200"
     >
-      {/* Top: product badge + date */}
+      {/* Top: wholesale badge + date */}
       <div className="flex items-start justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full
-                         bg-orange-500/10 text-orange-400 border border-orange-500/20 max-w-[200px] truncate">
-          🏷 {seller.product || 'Продавец'}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          {seller.wholesale ? (
+            <WholesaleBadge wholesale={seller.wholesale} />
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full
+                             bg-orange-500/10 text-orange-400 border border-orange-500/20 shrink-0">
+              🏪 Продавец
+            </span>
+          )}
+        </div>
         {dateStr && <span className="text-[11px] text-gray-600 shrink-0">{dateStr}</span>}
       </div>
 
@@ -104,12 +121,20 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
 }
 
 export function SellersTable({ sellers }: { sellers: Seller[] }) {
-  const [filter, setFilter] = useState<SellerStatus | 'все'>('все');
+  const [filter, setFilter] = useState<FilterType>('все');
   const [sort, setSort] = useState<SortDir>('desc');
   const [updateStatus] = useUpdateSellerStatusMutation();
 
+  function filterCount(f: FilterType): number {
+    if (f === 'все') return sellers.length;
+    if (f === 'оптовики') return sellers.filter(s => s.wholesale).length;
+    return sellers.filter(s => s.status === f).length;
+  }
+
   const filtered = sortByDate(
-    filter === 'все' ? sellers : sellers.filter((s) => s.status === filter),
+    filter === 'все' ? sellers
+    : filter === 'оптовики' ? sellers.filter(s => s.wholesale)
+    : sellers.filter(s => s.status === filter),
     sort,
   );
 
@@ -118,18 +143,15 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
       {/* Filter + sort row */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {STATUSES.map((s) => {
-            const count = s === 'все' ? sellers.length : sellers.filter((x) => x.status === s).length;
-            return (
-              <button key={s} onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  filter === s ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                }`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-                <span className="ml-1.5 text-gray-600">{count}</span>
-              </button>
-            );
-          })}
+          {FILTERS.map((f) => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                filter === f ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+              }`}>
+              {f === 'оптовики' ? '🏭 Оптовики' : f.charAt(0).toUpperCase() + f.slice(1)}
+              <span className="ml-1.5 text-gray-600">{filterCount(f)}</span>
+            </button>
+          ))}
         </div>
 
         <motion.button
@@ -165,7 +187,7 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-gray-600 uppercase tracking-wider">
                 <th className="text-left px-4 py-3 font-medium">Текст</th>
-                <th className="text-left px-4 py-3 font-medium">Товар</th>
+                <th className="text-left px-4 py-3 font-medium">Оптовик</th>
                 <th className="text-left px-4 py-3 font-medium">Группа</th>
                 <th className="text-left px-4 py-3 font-medium">Автор</th>
                 <th className="px-4 py-3 font-medium">
@@ -194,8 +216,15 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
                         className="text-blue-500 hover:text-blue-400 text-xs mt-1 inline-block">→ сообщение</a>
                     )}
                   </td>
-                  <td className="px-4 py-3 max-w-[140px]">
-                    <span className="text-orange-400 text-xs line-clamp-2">{seller.product || '—'}</span>
+                  <td className="px-4 py-3">
+                    {seller.wholesale ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full
+                                       bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        🏭 Да
+                      </span>
+                    ) : (
+                      <span className="text-gray-700 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-gray-500 text-xs">{seller.group || '—'}</span>
