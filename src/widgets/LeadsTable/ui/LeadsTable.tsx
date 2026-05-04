@@ -71,11 +71,21 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
 
       {/* Mobile: cards */}
       <div className="md:hidden space-y-2">
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-600 text-sm">Лидов не найдено</div>
-        ) : (
-          filtered.map((lead, i) => <LeadCard key={lead.id} lead={lead} index={i} />)
-        )}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {filtered.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-12 text-gray-600 text-sm"
+            >
+              Лидов не найдено
+            </motion.div>
+          ) : (
+            filtered.map((lead, i) => <LeadCard key={lead.id} lead={lead} index={i} />)
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Desktop: table */}
@@ -112,8 +122,14 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                   <td colSpan={6} className="text-center py-12 text-gray-600">Лидов не найдено</td>
                 </tr>
               )}
-              {filtered.map((lead) => (
-                <tr key={lead.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+              {filtered.map((lead, rowIdx) => (
+                <motion.tr
+                  key={lead.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: rowIdx * 0.03, ease: 'easeOut' }}
+                  className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                >
                   <td className="px-4 py-3 max-w-xs">
                     <div className="text-gray-300 line-clamp-2 text-xs leading-relaxed">{lead.text || '—'}</div>
                     {lead.link && (
@@ -148,7 +164,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                       onChange={(status) => updateStatus({ id: lead.id, status })}
                     />
                   </td>
-                </tr>
+                </motion.tr>
               ))}
             </tbody>
           </table>

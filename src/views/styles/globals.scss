@@ -17,6 +17,15 @@
   }
 }
 
+/* Hide scrollbar everywhere */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
