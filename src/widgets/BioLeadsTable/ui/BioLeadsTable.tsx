@@ -16,7 +16,7 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: 'expertise',  label: '⚗️ Эксперты сначала' },
 ];
 
-const STATUSES: (BioLeadStatus | 'все')[] = ['все', 'новый', 'отправлено', 'ответил', 'не ответил'];
+const STATUSES: (BioLeadStatus | 'все')[] = ['все', 'новый', 'отправлено', 'ответил', 'не ответил', 'архив'];
 const READINESS_FILTERS: (BioReadiness | 'все')[] = ['все', 'горячий', 'тёплый', 'холодный'];
 
 const READINESS_BADGE: Record<BioReadiness, { label: string; active: string; inactive: string }> = {

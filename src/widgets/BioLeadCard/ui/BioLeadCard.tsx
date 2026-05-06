@@ -54,6 +54,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; text: string; 
   'отправлено': { label: 'Отправлено', dot: 'bg-yellow-400', text: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
   'ответил':    { label: 'Ответил',    dot: 'bg-green-400',  text: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20' },
   'не ответил': { label: 'Не ответил', dot: 'bg-red-400',    text: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20' },
+  'архив':      { label: 'Архив',      dot: 'bg-gray-500',  text: 'text-gray-400',   bg: 'bg-gray-500/10 border-gray-500/20' },
 };
 
 const STATUS_OPTIONS: { value: BioLeadStatus; label: string; color: string }[] = [
@@ -61,6 +62,7 @@ const STATUS_OPTIONS: { value: BioLeadStatus; label: string; color: string }[] =
   { value: 'отправлено', label: 'Отправлено', color: 'text-yellow-400' },
   { value: 'ответил',    label: 'Ответил',    color: 'text-green-400' },
   { value: 'не ответил', label: 'Не ответил', color: 'text-red-400' },
+  { value: 'архив',      label: 'Архив',      color: 'text-gray-400' },
 ];
 
 function BioStatusSelect({ value, onChange }: { value: BioLeadStatus; onChange: (v: BioLeadStatus) => void }) {
@@ -95,7 +97,8 @@ function BioStatusSelect({ value, onChange }: { value: BioLeadStatus; onChange: 
                 <span className={`w-1.5 h-1.5 rounded-full ${
                   opt.value === 'новый' ? 'bg-blue-400' :
                   opt.value === 'отправлено' ? 'bg-yellow-400' :
-                  opt.value === 'ответил' ? 'bg-green-400' : 'bg-red-400'
+                  opt.value === 'ответил' ? 'bg-green-400' :
+                  opt.value === 'архив' ? 'bg-gray-500' : 'bg-red-400'
                 }`} />
                 <span className={opt.color}>{opt.label}</span>
               </button>
