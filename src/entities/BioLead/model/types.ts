@@ -1,4 +1,4 @@
-export type BioLeadStatus = 'новый' | 'отправлено' | 'ответил' | 'не ответил';
+export type BioLeadStatus = 'новый' | 'отправлено' | 'ответил' | 'не ответил' | 'архив';
 export type BioReadiness  = 'горячий' | 'тёплый' | 'холодный';
 export type BioExpertise  = 'разбирается' | 'новичок';
 export type BioGender     = 'мужской' | 'женский';
