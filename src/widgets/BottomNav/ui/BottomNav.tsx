@@ -9,6 +9,7 @@ const CATEGORIES = [
   { href: '/clothing',    label: 'Одежда',      icon: '👗', active: true },
   { href: '/stroy',       label: 'Стройка',     icon: '🏗', active: false },
   { href: '/bio',         label: 'Био',         icon: '💊', active: true },
+  { href: '/ecopulse',    label: 'Ecopulse',    icon: '❤️', active: true },
 ];
 
 export function BottomNav() {

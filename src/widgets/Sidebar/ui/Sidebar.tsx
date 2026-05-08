@@ -7,8 +7,8 @@ import { motion } from 'framer-motion';
 const CATEGORIES = [
   { href: '/electronics', label: 'Электроника',    icon: '📱', active: true },
   { href: '/clothing',    label: 'Одежда',         icon: '👗', active: true },
-  { href: '/stroy',       label: 'Стройматериалы', icon: '🏗', active: false },
   { href: '/bio',         label: 'Биохакинг',      icon: '💊', active: true },
+  { href: '/ecopulse',    label: 'Ecopulse',       icon: '❤️', active: true },
 ];
 
 export function Sidebar() {
