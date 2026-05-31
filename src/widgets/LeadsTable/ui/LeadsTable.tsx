@@ -6,10 +6,10 @@ import type { Lead, LeadStatus } from '@/entities/Lead';
 import { useUpdateLeadStatusMutation } from '@/entities/Lead';
 import { LeadCard } from './LeadCard';
 import { StatusSelect } from './StatusSelect';
-
-const STATUSES: (LeadStatus | 'все')[] = ['все', 'новый', 'отправлено', 'ответил', 'не ответил'];
+import { AssigneePicker } from '@/features/AssigneeMarker';
 
 type SortDir = 'desc' | 'asc';
+type StatusFilter = LeadStatus | 'все';
 
 function sortByDate(items: Lead[], dir: SortDir) {
   return [...items].sort((a, b) => {
@@ -19,33 +19,29 @@ function sortByDate(items: Lead[], dir: SortDir) {
   });
 }
 
-export function LeadsTable({ leads }: { leads: Lead[] }) {
-  const [filter, setFilter] = useState<LeadStatus | 'все'>('все');
+interface LeadsTableProps {
+  leads: Lead[];
+  statusFilter?: StatusFilter;
+  onOpenChat?: (lead: Lead) => void;
+}
+
+export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: LeadsTableProps) {
   const [sort, setSort] = useState<SortDir>('desc');
   const [updateStatus] = useUpdateLeadStatusMutation();
 
   const filtered = sortByDate(
-    filter === 'все' ? leads : leads.filter((l) => l.status === filter),
+    statusFilter === 'все' ? leads : leads.filter((l) => l.status === statusFilter),
     sort,
   );
 
   return (
     <div className="space-y-3">
-      {/* Filter + sort row */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {STATUSES.map((s) => {
-            const count = s === 'все' ? leads.length : leads.filter((l) => l.status === s).length;
-            return (
-              <button key={s} onClick={() => setFilter(s)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  filter === s ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-                }`}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-                <span className="ml-1.5 text-gray-600">{count}</span>
-              </button>
-            );
-          })}
+      {/* Top row — only sort (status is controlled via stat cards) */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-gray-500">
+          {statusFilter === 'все' ? 'Все лиды' : `Фильтр: ${statusFilter}`}
+          <span className="ml-2 text-gray-700">·</span>
+          <span className="ml-2 text-gray-600 tabular-nums">{filtered.length}</span>
         </div>
 
         <motion.button
@@ -83,7 +79,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
               Лидов не найдено
             </motion.div>
           ) : (
-            filtered.map((lead, i) => <LeadCard key={lead.id} lead={lead} index={i} />)
+            filtered.map((lead, i) => <LeadCard key={lead.id} lead={lead} index={i} onOpenChat={onOpenChat} />)
           )}
         </AnimatePresence>
       </div>
@@ -94,6 +90,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-gray-600 uppercase tracking-wider">
+                <th className="px-3 py-3 font-medium w-8"></th>
                 <th className="text-left px-4 py-3 font-medium">Текст</th>
                 <th className="text-left px-4 py-3 font-medium">Группа</th>
                 <th className="text-left px-4 py-3 font-medium">Автор</th>
@@ -119,7 +116,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-600">Лидов не найдено</td>
+                  <td colSpan={7} className="text-center py-12 text-gray-600">Лидов не найдено</td>
                 </tr>
               )}
               {filtered.map((lead, rowIdx) => (
@@ -128,12 +125,18 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.22, delay: rowIdx * 0.03, ease: 'easeOut' }}
-                  className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                  onClick={() => onOpenChat?.(lead)}
+                  className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors
+                              ${onOpenChat ? 'cursor-pointer' : ''}`}
                 >
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <AssigneePicker author={lead.author} size="md" />
+                  </td>
                   <td className="px-4 py-3 max-w-xs">
                     <div className="text-gray-300 line-clamp-2 text-xs leading-relaxed">{lead.text || '—'}</div>
                     {lead.link && (
                       <a href={lead.link} target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-blue-500 hover:text-blue-400 text-xs mt-1 inline-block">→ сообщение</a>
                     )}
                   </td>
@@ -143,6 +146,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                   <td className="px-4 py-3">
                     {lead.author
                       ? <a href={lead.author} target="_blank" rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="text-blue-400 hover:text-blue-300 text-xs">
                           {lead.author.replace('https://t.me/', '@')}
                         </a>
@@ -158,7 +162,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                   <td className="px-4 py-3 max-w-[200px]">
                     <span className="text-gray-500 text-xs line-clamp-2">{lead.comment || '—'}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <StatusSelect
                       value={lead.status as LeadStatus}
                       onChange={(status) => updateStatus({ id: lead.id, status })}

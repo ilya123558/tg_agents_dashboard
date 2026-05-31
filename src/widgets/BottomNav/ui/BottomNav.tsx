@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useUIShell } from '@/views/providers';
 
 const CATEGORIES = [
   { href: '/electronics', label: 'Электроника', icon: '📱', active: true },
@@ -14,9 +15,18 @@ const CATEGORIES = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { mobileFullscreen } = useUIShell();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111]/95 backdrop-blur-sm border-t border-white/5 flex z-50">
+    <AnimatePresence>
+      {!mobileFullscreen && (
+        <motion.nav
+          key="bottom-nav"
+          initial={{ y: 64, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 64, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-[#111]/95 backdrop-blur-sm border-t border-white/5 flex z-50">
       {CATEGORIES.map((cat) => {
         const isActive =
           pathname === cat.href ||
@@ -50,6 +60,8 @@ export function BottomNav() {
           </Link>
         );
       })}
-    </nav>
+        </motion.nav>
+      )}
+    </AnimatePresence>
   );
 }

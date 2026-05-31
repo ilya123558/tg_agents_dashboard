@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Lead, LeadStatus } from '@/entities/Lead';
-import { useUpdateLeadStatusMutation } from '@/entities/Lead';
-import { StatusSelect } from './StatusSelect';
+import type { Lead } from '@/entities/Lead';
+import { AssigneePicker } from '@/features/AssigneeMarker';
 
 const STATUS_BADGE: Record<string, { label: string; dot: string; text: string; bg: string }> = {
   'новый':      { label: 'Новый',      dot: 'bg-blue-400',   text: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20' },
@@ -15,9 +14,14 @@ const STATUS_BADGE: Record<string, { label: string; dot: string; text: string; b
 
 const LONG_TEXT = 120;
 
-export function LeadCard({ lead, index = 0 }: { lead: Lead; index?: number }) {
+interface LeadCardProps {
+  lead: Lead;
+  index?: number;
+  onOpenChat?: (lead: Lead) => void;
+}
+
+export function LeadCard({ lead, index = 0, onOpenChat }: LeadCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [updateStatus] = useUpdateLeadStatusMutation();
   const badge = STATUS_BADGE[lead.status] ?? STATUS_BADGE['новый'];
   const isLong = (lead.text?.length ?? 0) > LONG_TEXT;
 
@@ -32,20 +36,24 @@ export function LeadCard({ lead, index = 0 }: { lead: Lead; index?: number }) {
       exit={{ opacity: 0, y: -8, scale: 0.97, transition: { duration: 0.15, delay: 0 } }}
       transition={{ duration: 0.25, delay: index * 0.04, ease: 'easeOut' }}
       whileHover={{ y: -2 }}
-      className="group relative bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
-                 hover:border-white/[0.15] hover:bg-[#1a1a1a] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
-                 transition-all duration-200 cursor-default"
+      onClick={() => onOpenChat?.(lead)}
+      className={`group relative bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
+                  hover:border-white/[0.15] hover:bg-[#1a1a1a] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+                  transition-all duration-200 ${onOpenChat ? 'cursor-pointer' : ''}`}
     >
       {/* Top row */}
       <div className="flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge.bg} ${badge.text}`}>
-          <motion.span
-            className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}
-            animate={{ opacity: [1, 0.4, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          {badge.label}
-        </span>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <AssigneePicker author={lead.author} size="md" />
+          <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge.bg} ${badge.text}`}>
+            <motion.span
+              className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}
+              animate={{ opacity: [1, 0.4, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            {badge.label}
+          </span>
+        </div>
         {dateStr && <span className="text-[11px] text-gray-600">{dateStr}</span>}
       </div>
 
@@ -78,7 +86,7 @@ export function LeadCard({ lead, index = 0 }: { lead: Lead; index?: number }) {
         </AnimatePresence>
         {isLong && (
           <motion.button
-            onClick={() => setExpanded(v => !v)}
+            onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
             whileTap={{ scale: 0.95 }}
             className="mt-1 text-[11px] text-gray-600 hover:text-gray-400 transition-colors"
           >
@@ -96,7 +104,8 @@ export function LeadCard({ lead, index = 0 }: { lead: Lead; index?: number }) {
       )}
 
       {/* Footer */}
-      <div className="pt-1 border-t border-white/[0.05] flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="pt-1 border-t border-white/[0.05] flex flex-wrap items-center gap-x-3 gap-y-2"
+           onClick={(e) => e.stopPropagation()}>
         {lead.author && (
           <a href={lead.author} target="_blank" rel="noopener noreferrer"
             className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
@@ -112,12 +121,6 @@ export function LeadCard({ lead, index = 0 }: { lead: Lead; index?: number }) {
             → сообщение
           </a>
         )}
-        <div className="ml-auto">
-          <StatusSelect
-            value={lead.status as LeadStatus}
-            onChange={(status) => updateStatus({ id: lead.id, status })}
-          />
-        </div>
       </div>
     </motion.div>
   );

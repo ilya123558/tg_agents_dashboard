@@ -23,30 +23,38 @@ export function GroupsStats({ leads, label = 'лидов' }: { leads: Item[]; la
   return (
     <div className="bg-[#161616] border border-white/[0.07] rounded-2xl overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-        <span className="text-sm font-medium text-white">По группам</span>
-        <span className="text-xs text-gray-600">{raw.length} групп · {total} {label}</span>
+      <div className="px-5 py-3.5 border-b border-white/[0.06] flex items-baseline justify-between">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-medium text-white">По группам</span>
+          <span className="text-[11px] text-gray-600">распределение {label}</span>
+        </div>
+        <span className="text-[11px] text-gray-600 tabular-nums">
+          <span className="text-white font-semibold">{raw.length}</span> групп · <span className="text-white font-semibold">{total}</span> {label}
+        </span>
       </div>
 
-      {/* Bars */}
-      <div className="px-4 py-3 space-y-3">
+      {/* Bars — single column on mobile, 2 cols on md, 3 cols on lg */}
+      <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+        {raw.length === 0 && (
+          <div className="col-span-full text-center py-6 text-gray-700 text-xs">Нет данных</div>
+        )}
         {raw.map(([group, count], i) => {
-          const pct = Math.round((count / total) * 100);
+          const pct = total === 0 ? 0 : Math.round((count / total) * 100);
           const color = PALETTE[i % PALETTE.length];
-          const barWidth = (count / max) * 100;
+          const barWidth = max === 0 ? 0 : (count / max) * 100;
 
           return (
             <motion.div
               key={group}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: i * 0.05, ease: 'easeOut' }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: Math.min(i, 24) * 0.02, ease: 'easeOut' }}
             >
-              <div className="flex items-center justify-between mb-1 gap-2">
+              <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span className="text-xs text-gray-400 truncate flex-1">{group}</span>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 tabular-nums">
                   <span className="text-[10px] text-gray-600">{pct}%</span>
-                  <span className="text-xs font-semibold text-white w-5 text-right">{count}</span>
+                  <span className="text-xs font-semibold text-white w-6 text-right">{count}</span>
                 </div>
               </div>
               <div className="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
@@ -55,25 +63,12 @@ export function GroupsStats({ leads, label = 'лидов' }: { leads: Item[]; la
                   style={{ backgroundColor: color }}
                   initial={{ width: 0 }}
                   animate={{ width: `${barWidth}%` }}
-                  transition={{ duration: 0.6, delay: i * 0.05 + 0.1, ease: 'easeOut' }}
+                  transition={{ duration: 0.6, delay: Math.min(i, 24) * 0.02 + 0.05, ease: 'easeOut' }}
                 />
               </div>
             </motion.div>
           );
         })}
-      </div>
-
-      {/* Footer summary */}
-      <div className="px-4 py-3 border-t border-white/[0.06] flex flex-wrap gap-2">
-        {raw.slice(0, 4).map(([group, count], i) => (
-          <div key={group} className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
-            <span className="text-[10px] text-gray-600 truncate max-w-[80px]">{group.split(' ')[0]}</span>
-          </div>
-        ))}
-        {raw.length > 4 && (
-          <span className="text-[10px] text-gray-700">+{raw.length - 4} ещё</span>
-        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { StoreProvider } from './StoreProvider';
+import { UIShellProvider } from './UIShellProvider';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -10,7 +11,11 @@ interface ProvidersProps {
 export function Providers({ children }: ProvidersProps) {
   return (
     <StoreProvider>
-      {children}
+      <UIShellProvider>
+        {children}
+      </UIShellProvider>
     </StoreProvider>
   );
 }
+
+export { useUIShell } from './UIShellProvider';

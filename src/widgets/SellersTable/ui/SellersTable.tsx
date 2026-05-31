@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Seller, SellerStatus } from '@/entities/Seller';
 import { useUpdateSellerStatusMutation } from '@/entities/Seller';
 import { SellerStatusSelect } from './SellerStatusSelect';
+import { AssigneePicker } from '@/features/AssigneeMarker';
 
 type FilterType = 'все' | 'новый' | 'оптовики';
 const FILTERS: FilterType[] = ['все', 'новый', 'оптовики'];
@@ -29,10 +30,13 @@ function WholesaleBadge({ wholesale }: { wholesale: boolean }) {
   );
 }
 
-function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
+function SellerCard({ seller, index = 0, onOpenChat }: { seller: Seller; index?: number; onOpenChat?: (s: Seller) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [updateStatus] = useUpdateSellerStatusMutation();
   const isLong = (seller.text?.length ?? 0) > LONG_TEXT;
+  const cardClass = `bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
+                     hover:border-white/[0.13] hover:bg-[#1a1a1a] transition-colors duration-200
+                     ${onOpenChat ? 'cursor-pointer' : ''}`;
 
   const dateStr = seller.date
     ? new Date(seller.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -43,12 +47,13 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: index * 0.04, ease: 'easeOut' }}
-      className="bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
-                 hover:border-white/[0.13] hover:bg-[#1a1a1a] transition-colors duration-200"
+      onClick={() => onOpenChat?.(seller)}
+      className={cardClass}
     >
-      {/* Top: wholesale badge + date */}
+      {/* Top: marker + wholesale badge + date */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
+          <AssigneePicker author={seller.author} size="md" />
           {seller.wholesale ? (
             <WholesaleBadge wholesale={seller.wholesale} />
           ) : (
@@ -77,7 +82,7 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
           )}
         </AnimatePresence>
         {isLong && (
-          <button onClick={() => setExpanded(v => !v)}
+          <button onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
             className="mt-1 text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
             {expanded ? '↑ свернуть' : '↓ читать полностью'}
           </button>
@@ -93,7 +98,8 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
       )}
 
       {/* Footer */}
-      <div className="pt-1 border-t border-white/[0.05] flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="pt-1 border-t border-white/[0.05] flex flex-wrap items-center gap-x-3 gap-y-2"
+           onClick={(e) => e.stopPropagation()}>
         {seller.author && (
           <a href={seller.author} target="_blank" rel="noopener noreferrer"
             className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
@@ -120,7 +126,7 @@ function SellerCard({ seller, index = 0 }: { seller: Seller; index?: number }) {
   );
 }
 
-export function SellersTable({ sellers }: { sellers: Seller[] }) {
+export function SellersTable({ sellers, onOpenChat }: { sellers: Seller[]; onOpenChat?: (s: Seller) => void }) {
   const [filter, setFilter] = useState<FilterType>('все');
   const [sort, setSort] = useState<SortDir>('desc');
   const [updateStatus] = useUpdateSellerStatusMutation();
@@ -176,7 +182,7 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
         {filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-600 text-sm">Продавцов не найдено</div>
         ) : (
-          filtered.map((seller, i) => <SellerCard key={seller.id} seller={seller} index={i} />)
+          filtered.map((seller, i) => <SellerCard key={seller.id} seller={seller} index={i} onOpenChat={onOpenChat} />)
         )}
       </div>
 
@@ -186,6 +192,7 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-gray-600 uppercase tracking-wider">
+                <th className="px-3 py-3 font-medium w-8"></th>
                 <th className="text-left px-4 py-3 font-medium">Текст</th>
                 <th className="text-left px-4 py-3 font-medium">Оптовик</th>
                 <th className="text-left px-4 py-3 font-medium">Группа</th>
@@ -204,15 +211,22 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-600">Продавцов не найдено</td>
+                  <td colSpan={8} className="text-center py-12 text-gray-600">Продавцов не найдено</td>
                 </tr>
               )}
               {filtered.map((seller) => (
-                <tr key={seller.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                <tr key={seller.id}
+                    onClick={() => onOpenChat?.(seller)}
+                    className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors
+                                ${onOpenChat ? 'cursor-pointer' : ''}`}>
+                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                    <AssigneePicker author={seller.author} size="md" />
+                  </td>
                   <td className="px-4 py-3 max-w-xs">
                     <div className="text-gray-300 line-clamp-2 text-xs leading-relaxed">{seller.text || '—'}</div>
                     {seller.link && (
                       <a href={seller.link} target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-blue-500 hover:text-blue-400 text-xs mt-1 inline-block">→ сообщение</a>
                     )}
                   </td>
@@ -232,6 +246,7 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
                   <td className="px-4 py-3">
                     {seller.author ? (
                       <a href={seller.author} target="_blank" rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-blue-400 hover:text-blue-300 text-xs">
                         {seller.author.replace('https://t.me/', '@')}
                       </a>
@@ -247,7 +262,7 @@ export function SellersTable({ sellers }: { sellers: Seller[] }) {
                   <td className="px-4 py-3 max-w-[200px]">
                     <span className="text-gray-500 text-xs line-clamp-2">{seller.comment || '—'}</span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <SellerStatusSelect
                       value={seller.status}
                       onChange={(status) => updateStatus({ id: seller.id, status })}
