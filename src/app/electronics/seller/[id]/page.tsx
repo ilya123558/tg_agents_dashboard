@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useGetSellersQuery, useUpdateSellerStatusMutation } from '@/entities/Seller';
@@ -55,9 +55,18 @@ function LeadMini({ lead, index }: { lead: Lead; index: number }) {
 /* ── Page ── */
 export default function SellerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { data: sellersData, isLoading } = useGetSellersQuery();
   const { data: leadsData }              = useGetLeadsQuery();
   const [updateStatus]                   = useUpdateSellerStatusMutation();
+
+  function goBack() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/electronics');
+    }
+  }
 
   const seller      = sellersData?.sellers.find((s) => s.id === id);
   const allLeads    = leadsData?.leads ?? [];
@@ -80,7 +89,7 @@ export default function SellerDetailPage() {
   if (!seller) return (
     <div className="min-h-screen bg-[#0f0f0f] flex flex-col items-center justify-center gap-4 text-sm text-gray-600">
       Продавец не найден
-      <Link href="/electronics" className="text-xs text-blue-400 hover:text-blue-300">← Назад</Link>
+      <button type="button" onClick={goBack} className="text-xs text-blue-400 hover:text-blue-300">← Назад</button>
     </div>
   );
 
@@ -89,15 +98,29 @@ export default function SellerDetailPage() {
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-[#0f0f0f]/90 backdrop-blur-sm border-b border-white/5
                       px-4 py-3 flex items-center gap-3">
-        <Link href="/electronics"
+        <button
+          type="button"
+          onClick={goBack}
           className="text-gray-500 hover:text-white transition-colors p-1 -ml-1 rounded-lg hover:bg-white/5">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-        </Link>
-        <span className="text-sm font-medium text-white truncate">
+        </button>
+        <span className="text-sm font-medium text-white truncate flex-1">
           {seller.wholesale ? '🏭 Оптовик' : '🏪 Продавец'} · @{un}
         </span>
+        <Link
+          href={`/electronics/messages?chat=${seller.id}`}
+          className="flex items-center gap-1.5 text-xs text-blue-300 hover:text-white
+                     transition-colors px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20"
+          title="Открыть переписку с этим пользователем"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <span className="hidden sm:inline font-medium">Переписка</span>
+        </Link>
       </div>
 
       <div className="px-4 py-5 space-y-4 max-w-2xl mx-auto">
