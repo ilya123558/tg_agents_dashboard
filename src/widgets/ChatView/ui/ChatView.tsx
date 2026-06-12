@@ -8,10 +8,12 @@ import { useAssignees } from '@/shared/lib/useAssignees';
 import {
   CHAT_MESSAGES_EVENT,
   fetchMessages,
+  normalizeUsername as normalizeChatUsername,
   sendMessage,
   type ChatMessage,
 } from '@/shared/lib/chatMessages';
 import { avatarGradient, avatarText } from '@/shared/lib/conversations';
+import { supabase } from '@/shared/lib/supabase-client';
 import { PinnedContext } from './PinnedContext';
 import { MessageBubble } from './MessageBubble';
 import { Composer } from './Composer';
@@ -21,7 +23,7 @@ interface ChatViewProps {
   onBack?: () => void;       // на мобиле — вернуться к списку
 }
 
-const POLL_MS = 5000;
+const POLL_MS = 30000; // запасной поллинг — realtime основной источник
 
 export function ChatView({ lead, onBack }: ChatViewProps) {
   const { get: getAssignee } = useAssignees();
@@ -29,6 +31,7 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const authorKey = lead?.author ?? '';
+  const normalizedAuthor = useMemo(() => normalizeChatUsername(authorKey), [authorKey]);
 
   const refresh = useCallback(async () => {
     if (!authorKey) return;
@@ -43,12 +46,31 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
     refresh();
   }, [authorKey, refresh]);
 
-  // Поллинг входящих, пока чат открыт
+  // Запасной поллинг (на случай если realtime отвалится)
   useEffect(() => {
     if (!authorKey) return;
     const id = setInterval(refresh, POLL_MS);
     return () => clearInterval(id);
   }, [authorKey, refresh]);
+
+  // Realtime подписка на сообщения только этого диалога
+  useEffect(() => {
+    if (!normalizedAuthor) return;
+    const channel = supabase
+      .channel(`chat-view-${normalizedAuthor}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `author_username=eq.${normalizedAuthor}`,
+        },
+        () => { refresh(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [normalizedAuthor, refresh]);
 
   // Слушаем кастомное событие после отправки — мгновенное обновление
   useEffect(() => {

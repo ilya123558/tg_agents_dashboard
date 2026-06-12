@@ -7,6 +7,7 @@ import { avatarGradient, avatarText, relativeTime } from '@/shared/lib/conversat
 import { getManager, normalizeUsername } from '@/shared/lib/assignees';
 import { useAssignees } from '@/shared/lib/useAssignees';
 import { fetchConversations, type ConversationSummary } from '@/shared/lib/chatMessages';
+import { supabase } from '@/shared/lib/supabase-client';
 
 interface ChatListProps {
   leads: Lead[];
@@ -14,7 +15,7 @@ interface ChatListProps {
   onSelect: (lead: Lead) => void;
 }
 
-const POLL_MS = 10000;
+const POLL_MS = 30000; // запасной поллинг — реалтайм основной источник
 
 export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   const [search, setSearch] = useState('');
@@ -22,7 +23,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   const [managerFilter, setManagerFilter] = useState<string>('all');
   const [convMap, setConvMap] = useState<Map<string, ConversationSummary>>(new Map());
 
-  // Подгружаем сводки диалогов с сервера + поллим
+  // Подгружаем сводки диалогов с сервера + realtime подписка на новые сообщения
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
@@ -33,8 +34,25 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
       setConvMap(m);
     };
     load();
-    const id = setInterval(load, POLL_MS);
-    return () => { cancelled = true; clearInterval(id); };
+
+    // Подписка на любые изменения в messages: новое входящее, отправленное, статусы.
+    // На любое событие перечитываем агрегированную вьюшку — это дёшево.
+    const channel = supabase
+      .channel('chat-list-messages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+        if (!cancelled) load();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignees' }, () => {
+        if (!cancelled) load();
+      })
+      .subscribe();
+
+    const id = setInterval(load, POLL_MS); // на случай если realtime отвалится
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const filtered = useMemo(() => {

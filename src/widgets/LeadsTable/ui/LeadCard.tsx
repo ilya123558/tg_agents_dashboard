@@ -18,9 +18,10 @@ interface LeadCardProps {
   lead: Lead;
   index?: number;
   onOpenChat?: (lead: Lead) => void;
+  replied?: boolean;
 }
 
-export function LeadCard({ lead, index = 0, onOpenChat }: LeadCardProps) {
+export function LeadCard({ lead, index = 0, onOpenChat, replied = false }: LeadCardProps) {
   const [expanded, setExpanded] = useState(false);
   const badge = STATUS_BADGE[lead.status] ?? STATUS_BADGE['новый'];
   const isLong = (lead.text?.length ?? 0) > LONG_TEXT;
@@ -37,13 +38,14 @@ export function LeadCard({ lead, index = 0, onOpenChat }: LeadCardProps) {
       transition={{ duration: 0.25, delay: index * 0.04, ease: 'easeOut' }}
       whileHover={{ y: -2 }}
       onClick={() => onOpenChat?.(lead)}
-      className={`group relative bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
-                  hover:border-white/[0.15] hover:bg-[#1a1a1a] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
-                  transition-all duration-200 ${onOpenChat ? 'cursor-pointer' : ''}`}
+      className={`group relative bg-[#161616] border rounded-2xl p-4 space-y-3
+                  hover:bg-[#1a1a1a] hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+                  transition-all duration-200 ${onOpenChat ? 'cursor-pointer' : ''}
+                  ${replied ? 'border-emerald-500/25 hover:border-emerald-500/40' : 'border-white/[0.07] hover:border-white/[0.15]'}`}
     >
       {/* Top row */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
           <AssigneePicker author={lead.author} size="md" />
           <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${badge.bg} ${badge.text}`}>
             <motion.span
@@ -53,6 +55,12 @@ export function LeadCard({ lead, index = 0, onOpenChat }: LeadCardProps) {
             />
             {badge.label}
           </span>
+          {replied && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
+              <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+              ответил
+            </span>
+          )}
         </div>
         {dateStr && <span className="text-[11px] text-gray-600">{dateStr}</span>}
       </div>
