@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getManager, MANAGER_LIST, normalizeUsername } from '@/shared/lib/assignees';
+import { getManager, normalizeUsername } from '@/shared/lib/assignees';
 import { useAssignees } from '@/shared/lib/useAssignees';
 import { AssigneeMarker } from './AssigneeMarker';
 
@@ -26,7 +26,7 @@ const MENU_WIDTH = 200;
 
 export function AssigneePicker({ author, size = 'md', showLabel = false, showChevron = false }: AssigneePickerProps) {
   const username = normalizeUsername(author);
-  const { get, set } = useAssignees();
+  const { get, set, managers } = useAssignees();
   const value = get(username);
   const manager = getManager(value);
 
@@ -35,7 +35,7 @@ export function AssigneePicker({ author, size = 'md', showLabel = false, showChe
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const menuHeight = (MANAGER_LIST.length + 1) * MENU_ROW_HEIGHT + 16;
+  const menuHeight = (managers.length + 1) * MENU_ROW_HEIGHT + 16;
 
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
@@ -138,8 +138,8 @@ export function AssigneePicker({ author, size = 'md', showLabel = false, showChe
                 </span>
                 Снять назначение
               </button>
-              {MANAGER_LIST.map((m) => {
-                const meta = getManager(m.id)!.meta;
+              {managers.map((m) => {
+                const meta = m.meta;
                 const active = value === m.id;
                 return (
                   <button
