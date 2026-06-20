@@ -40,23 +40,49 @@ export interface ManagerConfig {
   color: ColorKey;
 }
 
-export const MANAGER_LIST: ManagerConfig[] = [
+// Глобальный реестр всех менеджеров (по всем вертикалям).
+const ALL_MANAGERS: ManagerConfig[] = [
   { id: 'alexander', name: 'Александр', initials: 'Ал', color: 'emerald' },
   { id: 'anton',     name: 'Антон',     initials: 'Ан', color: 'amber'   },
+  { id: 'andrey',    name: 'Андрей',    initials: 'Ан', color: 'sky'     },
+  { id: 'ilya',      name: 'Илья',      initials: 'Ил', color: 'rose'    },
+  { id: 'antip',     name: 'Антип',     initials: 'Ат', color: 'cyan'    },
 ];
 
-export const MANAGER_IDS = MANAGER_LIST.map(m => m.id);
+// Какие менеджеры обслуживают какую вертикаль.
+const MANAGERS_BY_VERTICAL: Record<string, string[]> = {
+  electronics: ['alexander', 'anton'],
+  clothing:    ['alexander', 'andrey'],
+  cars:        ['alexander', 'ilya'],
+  stroy:       ['antip', 'alexander', 'ilya'],
+};
+
 export type ManagerId = string;
 export type Assignee = ManagerId | null;
 
 export const MANAGERS: Record<string, ManagerConfig & { meta: ColorMeta }> = Object.fromEntries(
-  MANAGER_LIST.map(m => [m.id, { ...m, meta: PALETTE[m.color] }]),
+  ALL_MANAGERS.map(m => [m.id, { ...m, meta: PALETTE[m.color] }]),
 );
 
 export function getManager(id: string | null | undefined): (ManagerConfig & { meta: ColorMeta }) | null {
   if (!id) return null;
   return MANAGERS[id] ?? null;
 }
+
+/** Возвращает список менеджеров для конкретной вертикали (с готовой palette meta). */
+export function managersForVertical(vertical: string): (ManagerConfig & { meta: ColorMeta })[] {
+  const ids = MANAGERS_BY_VERTICAL[vertical] ?? MANAGERS_BY_VERTICAL.electronics;
+  return ids
+    .map((id) => ALL_MANAGERS.find((m) => m.id === id))
+    .filter((m): m is ManagerConfig => !!m)
+    .map((m) => ({ ...m, meta: PALETTE[m.color] }));
+}
+
+/** Все id менеджеров (глобально). */
+export const MANAGER_IDS = ALL_MANAGERS.map(m => m.id);
+
+/** @deprecated — используй managersForVertical(vertical). Оставлено для совместимости. */
+export const MANAGER_LIST: ManagerConfig[] = ALL_MANAGERS.filter(m => ['alexander', 'anton'].includes(m.id));
 
 /** Унификация username — '@Ivan' / URL → 'ivan'. */
 export function normalizeUsername(input: string | null | undefined): string {
@@ -70,18 +96,18 @@ export function normalizeUsername(input: string | null | undefined): string {
 
 // ─── API ─────────────────────────────────────────────────────────────────────
 
-export async function fetchAssignees(): Promise<Record<string, ManagerId>> {
-  const res = await fetch('/api/assignees', { cache: 'no-store' });
+export async function fetchAssignees(vertical: string = 'electronics'): Promise<Record<string, ManagerId>> {
+  const res = await fetch(`/api/assignees?vertical=${encodeURIComponent(vertical)}`, { cache: 'no-store' });
   if (!res.ok) return {};
   const data = (await res.json()) as { assignees?: Record<string, ManagerId> };
   return data.assignees ?? {};
 }
 
-export async function postAssignee(author: string, managerId: ManagerId | null): Promise<boolean> {
+export async function postAssignee(author: string, managerId: ManagerId | null, vertical: string = 'electronics'): Promise<boolean> {
   const res = await fetch('/api/assignees', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ author: normalizeUsername(author), managerId }),
+    body: JSON.stringify({ author: normalizeUsername(author), managerId, vertical }),
   });
   return res.ok;
 }

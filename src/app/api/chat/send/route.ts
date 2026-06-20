@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sbInsert, normalizeUsername, type DbMessage } from '@/shared/lib/supabase-server';
+import { sbInsert, normalizeUsername, normalizeVertical, type DbMessage } from '@/shared/lib/supabase-server';
 
 /**
  * POST /api/chat/send
- * Body: { author: string, text: string, sentBy?: 'alexander'|'anton'|'agent' }
+ * Body: { author: string, text: string, sentBy?: string, vertical?: 'electronics'|'clothing' }
  *
  * Вставляет в Supabase сообщение со status='pending' direction='out'.
  * Python воркер (chat_bridge.py) подхватит и реально отправит в Telegram.
  */
 export async function POST(req: NextRequest) {
-  let body: { author?: string; text?: string; sentBy?: string };
+  let body: { author?: string; text?: string; sentBy?: string; vertical?: string };
   try {
     body = await req.json();
   } catch {
@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
   const author = normalizeUsername(body.author);
   const text = (body.text ?? '').trim();
   const sentBy = body.sentBy ?? 'agent';
+  const vertical = normalizeVertical(body.vertical);
 
   if (!author) {
     return NextResponse.json({ error: 'author required' }, { status: 400 });
@@ -33,6 +34,7 @@ export async function POST(req: NextRequest) {
   try {
     const rows = await sbInsert<DbMessage>('messages', {
       author_username: author,
+      vertical,
       direction: 'out',
       text,
       status: 'pending',

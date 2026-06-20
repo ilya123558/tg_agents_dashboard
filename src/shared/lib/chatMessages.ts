@@ -60,10 +60,10 @@ export function normalizeUsername(input: string | null | undefined): string {
     .toLowerCase();
 }
 
-export async function fetchMessages(authorOrUrl: string | null): Promise<ChatMessage[]> {
+export async function fetchMessages(authorOrUrl: string | null, vertical: string = 'electronics'): Promise<ChatMessage[]> {
   const author = normalizeUsername(authorOrUrl);
   if (!author) return [];
-  const res = await fetch(`/api/chat/messages?author=${encodeURIComponent(author)}`, {
+  const res = await fetch(`/api/chat/messages?author=${encodeURIComponent(author)}&vertical=${encodeURIComponent(vertical)}`, {
     cache: 'no-store',
   });
   if (!res.ok) return [];
@@ -75,13 +75,14 @@ export async function sendMessage(
   authorOrUrl: string | null,
   text: string,
   sentBy?: string,
+  vertical: string = 'electronics',
 ): Promise<ChatMessage | null> {
   const author = normalizeUsername(authorOrUrl);
   if (!author || !text.trim()) return null;
   const res = await fetch('/api/chat/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ author, text: text.trim(), sentBy }),
+    body: JSON.stringify({ author, text: text.trim(), sentBy, vertical }),
   });
   if (!res.ok) return null;
   const data = (await res.json()) as { message?: DbRow };
@@ -108,8 +109,8 @@ export interface ConversationSummary {
   assignee: string | null;
 }
 
-export async function fetchConversations(): Promise<ConversationSummary[]> {
-  const res = await fetch('/api/chat/conversations', { cache: 'no-store' });
+export async function fetchConversations(vertical: string = 'electronics'): Promise<ConversationSummary[]> {
+  const res = await fetch(`/api/chat/conversations?vertical=${encodeURIComponent(vertical)}`, { cache: 'no-store' });
   if (!res.ok) return [];
   const data = (await res.json()) as {
     conversations?: {

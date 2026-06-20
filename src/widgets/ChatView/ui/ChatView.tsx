@@ -14,6 +14,7 @@ import {
 } from '@/shared/lib/chatMessages';
 import { avatarGradient, avatarText } from '@/shared/lib/conversations';
 import { supabase } from '@/shared/lib/supabase-client';
+import { useVertical } from '@/shared/lib/VerticalContext';
 import { PinnedContext } from './PinnedContext';
 import { MessageBubble } from './MessageBubble';
 import { Composer } from './Composer';
@@ -26,6 +27,7 @@ interface ChatViewProps {
 const POLL_MS = 30000; // запасной поллинг — realtime основной источник
 
 export function ChatView({ lead, onBack }: ChatViewProps) {
+  const vertical = useVertical();
   const { get: getAssignee } = useAssignees();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -35,9 +37,9 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
 
   const refresh = useCallback(async () => {
     if (!authorKey) return;
-    const msgs = await fetchMessages(authorKey);
+    const msgs = await fetchMessages(authorKey, vertical);
     setMessages(msgs);
-  }, [authorKey]);
+  }, [authorKey, vertical]);
 
   // Первая загрузка при смене лида
   useEffect(() => {
@@ -53,11 +55,11 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
     return () => clearInterval(id);
   }, [authorKey, refresh]);
 
-  // Realtime подписка на сообщения только этого диалога
+  // Realtime подписка на сообщения только этого диалога этой вертикали
   useEffect(() => {
     if (!normalizedAuthor) return;
     const channel = supabase
-      .channel(`chat-view-${normalizedAuthor}`)
+      .channel(`chat-view-${vertical}-${normalizedAuthor}`)
       .on(
         'postgres_changes',
         {
@@ -66,11 +68,15 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
           table: 'messages',
           filter: `author_username=eq.${normalizedAuthor}`,
         },
-        () => { refresh(); },
+        (payload) => {
+          // Доп. фильтр по вертикали на клиенте (Supabase realtime фильтрует только по 1 полю)
+          const row = (payload.new ?? payload.old) as { vertical?: string } | undefined;
+          if (!row || row.vertical === vertical) refresh();
+        },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [normalizedAuthor, refresh]);
+  }, [normalizedAuthor, vertical, refresh]);
 
   // Слушаем кастомное событие после отправки — мгновенное обновление
   useEffect(() => {
@@ -100,7 +106,7 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
 
   async function handleSend(text: string) {
     if (!lead?.author) return;
-    await sendMessage(lead.author, text, assignee ?? 'agent');
+    await sendMessage(lead.author, text, assignee ?? 'agent', vertical);
     // refresh уже происходит из CHAT_MESSAGES_EVENT
   }
 

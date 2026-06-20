@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useGetClothingLeadsQuery } from '@/entities/Lead';
+import { useGetCarsLeadsQuery } from '@/entities/Lead';
 import { StatsPanel, type LeadFilter } from '@/widgets/StatsPanel';
 import { LeadsTable } from '@/widgets/LeadsTable';
 import { GroupsStats } from '@/widgets/GroupsStats';
@@ -20,7 +20,7 @@ const DATE_RANGES: { value: DateRange; label: string; days: number }[] = [
   { value: '7d', label: 'Неделя', days: 7 },
 ];
 
-const SCROLL_STORAGE_KEY = 'clothing:scrollY';
+const SCROLL_STORAGE_KEY = 'cars:scrollY';
 const VALID_RANGES: DateRange[] = ['1d', '3d', '7d'];
 const VALID_FILTERS: LeadFilter[] = ['все', 'новый', 'отправлено', 'ответил', 'не ответил'];
 
@@ -37,7 +37,7 @@ function writeParam(key: string, value: string) {
   window.history.replaceState(null, '', url.toString());
 }
 
-export default function ClothingPage() {
+export default function CarsPage() {
   const [dateRange, setDateRangeState] = useState<DateRange>(() => readParam('period', VALID_RANGES, '1d'));
   const [leadStatusFilter, setLeadStatusFilterState] = useState<LeadFilter>(() => readParam('status', VALID_FILTERS, 'все'));
   const groupsRef = useRef<HTMLDivElement | null>(null);
@@ -45,7 +45,7 @@ export default function ClothingPage() {
   const setDateRange = useCallback((r: DateRange) => { setDateRangeState(r); writeParam('period', r); }, []);
   const setLeadStatusFilter = useCallback((s: LeadFilter) => { setLeadStatusFilterState(s); writeParam('status', s); }, []);
 
-  const { data: leadsData, isLoading, isError } = useGetClothingLeadsQuery(undefined, { pollingInterval: 60_000 });
+  const { data: leadsData, isLoading, isError } = useGetCarsLeadsQuery(undefined, { pollingInterval: 60_000 });
 
   const cutoff = useMemo(() => {
     const days = DATE_RANGES.find(r => r.value === dateRange)?.days ?? 1;
@@ -62,7 +62,7 @@ export default function ClothingPage() {
   const counts = useMemo(() => countBy(filteredLeads), [filteredLeads, countBy]);
 
   const openLeadChat = useCallback((lead: Lead) => {
-    router.push(`/clothing/messages?chat=${lead.id}`);
+    router.push(`/cars/messages?chat=${lead.id}`);
   }, [router]);
 
   function handleStatusClick(s: LeadFilter) {
@@ -112,8 +112,8 @@ export default function ClothingPage() {
       <header className="border-b border-white/5 px-4 md:px-6 py-3.5 flex items-center gap-3 sticky top-0
                          bg-[#0f0f0f]/90 backdrop-blur-sm z-30">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-lg">👗</span>
-          <span className="font-medium text-white text-sm">Одежда</span>
+          <span className="text-lg">🚗</span>
+          <span className="font-medium text-white text-sm">Машины</span>
         </div>
 
         <div className="hidden sm:flex items-center bg-white/[0.04] border border-white/[0.06] rounded-full p-0.5 ml-3">
@@ -129,7 +129,7 @@ export default function ClothingPage() {
               >
                 {active && (
                   <motion.span
-                    layoutId="period-pill-clothing"
+                    layoutId="period-pill-cars"
                     transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     className="absolute inset-0 bg-white/10 rounded-full -z-10"
                   />
@@ -160,7 +160,7 @@ export default function ClothingPage() {
         </div>
 
         <Link
-          href="/clothing/analytics"
+          href="/cars/analytics"
           className="md:ml-3 ml-auto flex items-center gap-1.5 text-xs text-gray-300 hover:text-white
                      transition-colors px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06]"
           title="Аналитика"
@@ -173,7 +173,7 @@ export default function ClothingPage() {
         </Link>
 
         <Link
-          href="/clothing/messages"
+          href="/cars/messages"
           className="flex items-center gap-1.5 text-xs text-gray-300 hover:text-white
                      transition-colors px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06]"
           title="Открыть сообщения"
@@ -218,7 +218,7 @@ export default function ClothingPage() {
               >
                 {active && (
                   <motion.span
-                    layoutId="period-pill-clothing-mobile"
+                    layoutId="period-pill-cars-mobile"
                     transition={{ type: 'spring', stiffness: 380, damping: 32 }}
                     className="absolute inset-0 bg-white/10 rounded-full -z-10"
                   />

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { sbSelect, type DbMessage, type DbAssignee, type DbConversation } from '@/shared/lib/supabase-server';
+import { NextRequest, NextResponse } from 'next/server';
+import { sbSelect, normalizeVertical, type DbMessage, type DbAssignee, type DbConversation } from '@/shared/lib/supabase-server';
 
 /**
  * GET /api/analytics
@@ -56,17 +56,18 @@ function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const vertical = normalizeVertical(req.nextUrl.searchParams.get('vertical'));
   try {
     // Тянем все сообщения за 35 дней — этого хватает на месячные метрики + 14-дневный график
     const cutoff = new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString();
     const [messages, assignees, conversations] = await Promise.all([
       sbSelect<DbMessage>(
         'messages',
-        `created_at=gte.${encodeURIComponent(cutoff)}&select=id,direction,sent_by,status,created_at,author_username&order=created_at.desc&limit=10000`,
+        `vertical=eq.${vertical}&created_at=gte.${encodeURIComponent(cutoff)}&select=id,direction,sent_by,status,created_at,author_username&order=created_at.desc&limit=10000`,
       ),
-      sbSelect<DbAssignee>('assignees', 'select=author_username,manager_id'),
-      sbSelect<DbConversation>('conversations', 'order=last_message_at.desc&limit=500'),
+      sbSelect<DbAssignee>('assignees', `vertical=eq.${vertical}&select=author_username,manager_id`),
+      sbSelect<DbConversation>('conversations', `vertical=eq.${vertical}&order=last_message_at.desc&limit=500`),
     ]);
 
     // Считаем «всё за всё время» отдельным быстрым селектом по count — Supabase REST

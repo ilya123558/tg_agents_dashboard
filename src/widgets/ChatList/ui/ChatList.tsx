@@ -8,6 +8,7 @@ import { getManager, normalizeUsername } from '@/shared/lib/assignees';
 import { useAssignees } from '@/shared/lib/useAssignees';
 import { fetchConversations, type ConversationSummary } from '@/shared/lib/chatMessages';
 import { supabase } from '@/shared/lib/supabase-client';
+import { useVertical } from '@/shared/lib/VerticalContext';
 
 interface ChatListProps {
   leads: Lead[];
@@ -18,6 +19,7 @@ interface ChatListProps {
 const POLL_MS = 30000; // запасной поллинг — реалтайм основной источник
 
 export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
+  const vertical = useVertical();
   const [search, setSearch] = useState('');
   const { get: getAssignee, managers } = useAssignees();
   const [managerFilter, setManagerFilter] = useState<string>('all');
@@ -27,7 +29,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const list = await fetchConversations();
+      const list = await fetchConversations(vertical);
       if (cancelled) return;
       const m = new Map<string, ConversationSummary>();
       for (const c of list) m.set(c.authorUsername, c);
@@ -35,25 +37,23 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
     };
     load();
 
-    // Подписка на любые изменения в messages: новое входящее, отправленное, статусы.
-    // На любое событие перечитываем агрегированную вьюшку — это дёшево.
     const channel = supabase
-      .channel('chat-list-messages')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
+      .channel(`chat-list-messages-${vertical}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `vertical=eq.${vertical}` }, () => {
         if (!cancelled) load();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignees' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'assignees', filter: `vertical=eq.${vertical}` }, () => {
         if (!cancelled) load();
       })
       .subscribe();
 
-    const id = setInterval(load, POLL_MS); // на случай если realtime отвалится
+    const id = setInterval(load, POLL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [vertical]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

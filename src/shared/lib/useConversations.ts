@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchConversations, type ConversationSummary } from './chatMessages';
 import { normalizeUsername } from './assignees';
 import { supabase } from './supabase-client';
+import { useVertical } from './VerticalContext';
 
 /**
  * Хук читает сводки диалогов (view conversations) + подписывается на realtime
@@ -11,22 +12,23 @@ import { supabase } from './supabase-client';
  * которые уже ответили.
  */
 export function useConversations() {
+  const vertical = useVertical();
   const [map, setMap] = useState<Map<string, ConversationSummary>>(new Map());
 
   const load = useCallback(async () => {
-    const list = await fetchConversations();
+    const list = await fetchConversations(vertical);
     const m = new Map<string, ConversationSummary>();
     for (const c of list) m.set(c.authorUsername, c);
     setMap(m);
-  }, []);
+  }, [vertical]);
 
   useEffect(() => {
     let cancelled = false;
     const safeLoad = () => { if (!cancelled) load(); };
     safeLoad();
     const channel = supabase
-      .channel('useconversations-stream')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, safeLoad)
+      .channel(`useconversations-stream-${vertical}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `vertical=eq.${vertical}` }, safeLoad)
       .subscribe();
     const id = setInterval(safeLoad, 30_000); // safety net
     return () => {
@@ -34,7 +36,7 @@ export function useConversations() {
       clearInterval(id);
       supabase.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, vertical]);
 
   const get = useCallback(
     (author: string | null | undefined): ConversationSummary | null => {

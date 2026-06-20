@@ -3,9 +3,9 @@
 import { motion } from 'framer-motion';
 import { VerticalProvider } from '@/shared/lib/VerticalContext';
 
-export default function ClothingTemplate({ children }: { children: React.ReactNode }) {
+export default function StroyTemplate({ children }: { children: React.ReactNode }) {
   return (
-    <VerticalProvider value="clothing">
+    <VerticalProvider value="stroy">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

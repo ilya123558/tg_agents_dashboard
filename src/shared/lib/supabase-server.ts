@@ -83,9 +83,21 @@ export async function sbDelete(table: string, query: string): Promise<void> {
 
 // ─── Domain types ───────────────────────────────────────────────────────────
 
+export type Vertical = 'electronics' | 'clothing' | 'cars' | 'stroy';
+
+export const DEFAULT_VERTICAL: Vertical = 'electronics';
+
+export function normalizeVertical(v: string | null | undefined): Vertical {
+  if (v === 'clothing') return 'clothing';
+  if (v === 'cars') return 'cars';
+  if (v === 'stroy') return 'stroy';
+  return 'electronics';
+}
+
 export interface DbMessage {
   id: string;
   author_username: string;
+  vertical: Vertical;
   direction: 'in' | 'out';
   text: string;
   tg_message_id: number | null;
@@ -97,12 +109,14 @@ export interface DbMessage {
 
 export interface DbAssignee {
   author_username: string;
+  vertical: Vertical;
   manager_id: string | null;
   updated_at: string;
 }
 
 export interface DbConversation {
   author_username: string;
+  vertical: Vertical;
   last_message_at: string;
   message_count: number;
   in_count: number;
