@@ -13,6 +13,9 @@ import { useConversations } from '@/shared/lib/useConversations';
 type SortDir = 'desc' | 'asc';
 type StatusFilter = LeadStatus | 'все';
 type AssigneeFilter = 'all' | 'unassigned' | string;
+type RegionFilter = 'all' | string;
+
+const REGION_UNKNOWN = '__no_region__';
 
 function sortByDate(items: Lead[], dir: SortDir) {
   return [...items].sort((a, b) => {
@@ -32,17 +35,31 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
   const [sort, setSort] = useState<SortDir>('desc');
   const [search, setSearch] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>('all');
+  const [regionFilter, setRegionFilter] = useState<RegionFilter>('all');
   const [updateStatus] = useUpdateLeadStatusMutation();
   const { get: getAssignee, managers, countBy } = useAssignees();
   const { hasReplied } = useConversations();
 
-  // 1) статус → 2) поиск → 3) менеджер → 4) сортировка
+  // Список уникальных регионов из лидов (для дропдауна)
+  const regionOptions = useMemo(() => {
+    const set = new Set<string>();
+    let hasUnknown = false;
+    for (const l of leads) {
+      const r = (l.region ?? '').trim();
+      if (r) set.add(r);
+      else hasUnknown = true;
+    }
+    const arr = Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+    return { regions: arr, hasUnknown };
+  }, [leads]);
+
+  // 1) статус → 2) поиск → 3) менеджер → 4) регион → 5) сортировка
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = statusFilter === 'все' ? leads : leads.filter((l) => l.status === statusFilter);
     if (q) {
       list = list.filter((l) => {
-        const hay = `${l.author ?? ''} ${l.group ?? ''} ${l.text ?? ''} ${l.comment ?? ''}`.toLowerCase();
+        const hay = `${l.author ?? ''} ${l.group ?? ''} ${l.text ?? ''} ${l.comment ?? ''} ${l.region ?? ''}`.toLowerCase();
         return hay.includes(q);
       });
     }
@@ -53,8 +70,15 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
         return a === assigneeFilter;
       });
     }
+    if (regionFilter !== 'all') {
+      list = list.filter((l) => {
+        const r = (l.region ?? '').trim();
+        if (regionFilter === REGION_UNKNOWN) return !r;
+        return r === regionFilter;
+      });
+    }
     return sortByDate(list, sort);
-  }, [leads, statusFilter, search, assigneeFilter, sort, getAssignee]);
+  }, [leads, statusFilter, search, assigneeFilter, regionFilter, sort, getAssignee]);
 
   // Счётчики для чипов менеджеров (среди отфильтрованных по статусу+поиску, без фильтра менеджера)
   const counts = useMemo(() => {
@@ -101,6 +125,27 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
             </button>
           )}
         </div>
+
+        {(regionOptions.regions.length > 0 || regionOptions.hasUnknown) && (
+          <select
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value as RegionFilter)}
+            className="px-3 py-2 rounded-xl text-xs font-medium
+                       text-gray-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08]
+                       border border-white/[0.06] transition-colors shrink-0
+                       focus:outline-none focus:border-white/15
+                       max-w-[160px]"
+            title="Фильтр по региону"
+          >
+            <option value="all" className="bg-[#161616]">📍 Все регионы</option>
+            {regionOptions.regions.map((r) => (
+              <option key={r} value={r} className="bg-[#161616]">{r}</option>
+            ))}
+            {regionOptions.hasUnknown && (
+              <option value={REGION_UNKNOWN} className="bg-[#161616]">— Без региона</option>
+            )}
+          </select>
+        )}
 
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -218,6 +263,7 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
                 <th className="px-3 py-3 font-medium w-8"></th>
                 <th className="text-left px-4 py-3 font-medium">Текст</th>
                 <th className="text-left px-4 py-3 font-medium">Группа</th>
+                <th className="text-left px-4 py-3 font-medium">Регион</th>
                 <th className="text-left px-4 py-3 font-medium">Автор</th>
                 <th className="px-4 py-3 font-medium">
                   <button
@@ -241,7 +287,7 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-gray-600">Лидов не найдено</td>
+                  <td colSpan={8} className="text-center py-12 text-gray-600">Лидов не найдено</td>
                 </tr>
               )}
               {filtered.map((lead, rowIdx) => {
@@ -270,6 +316,16 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-gray-500 text-xs">{lead.group || '—'}</span>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {lead.region ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 text-[11px] font-medium border border-sky-500/15">
+                        <span className="text-[10px] opacity-70">📍</span>
+                        {lead.region}
+                      </span>
+                    ) : (
+                      <span className="text-gray-700 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">

@@ -61,6 +61,10 @@ export function LeadCard({ lead, index = 0, onOpenChat, replied = false }: LeadC
               ответил
             </span>
           )}
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/15 text-[10px] font-medium">
+            <span className="text-[9px] opacity-70">📍</span>
+            {lead.region?.trim() || '—'}
+          </span>
         </div>
         {dateStr && <span className="text-[11px] text-gray-600">{dateStr}</span>}
       </div>
