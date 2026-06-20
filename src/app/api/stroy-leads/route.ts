@@ -53,6 +53,7 @@ export async function GET() {
         status:   p['Статус']?.select?.name ?? 'новый',
         category: p['Категория']?.select?.name ?? '',
         products: p['Товары']?.rich_text?.[0]?.plain_text ?? '',
+        region:   p['Регион']?.rich_text?.[0]?.plain_text ?? '',
       };
     });
 

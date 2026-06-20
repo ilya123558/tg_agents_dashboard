@@ -11,4 +11,5 @@ export interface Lead {
   status: LeadStatus;
   category: string;
   products: string;
+  region?: string;
 }
