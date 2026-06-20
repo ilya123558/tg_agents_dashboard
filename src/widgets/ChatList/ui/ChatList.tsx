@@ -9,6 +9,7 @@ import { useAssignees } from '@/shared/lib/useAssignees';
 import { fetchConversations, type ConversationSummary } from '@/shared/lib/chatMessages';
 import { supabase } from '@/shared/lib/supabase-client';
 import { useVertical } from '@/shared/lib/VerticalContext';
+import { markChatSeen, useChatSeen } from '@/shared/lib/chatSeen';
 
 interface ChatListProps {
   leads: Lead[];
@@ -24,6 +25,25 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   const { get: getAssignee, managers } = useAssignees();
   const [managerFilter, setManagerFilter] = useState<string>('all');
   const [convMap, setConvMap] = useState<Map<string, ConversationSummary>>(new Map());
+  const { isSeenAfter } = useChatSeen(vertical);
+
+  // При клике на чат: помечаем seen и проксируем выбор наружу
+  const handleSelect = (lead: Lead) => {
+    const username = normalizeUsername(lead.author ?? '');
+    if (username) markChatSeen(vertical, username);
+    onSelect(lead);
+  };
+
+  // Автоматически отмечаем seen для текущего активного чата при появлении/обновлении
+  useEffect(() => {
+    if (!activeId) return;
+    const lead = leads.find((l) => l.id === activeId);
+    const username = normalizeUsername(lead?.author ?? '');
+    if (!username) return;
+    const conv = convMap.get(username);
+    if (conv) markChatSeen(vertical, username, new Date(conv.lastMessageAt).getTime());
+    else markChatSeen(vertical, username);
+  }, [activeId, convMap, leads, vertical]);
 
   // Подгружаем сводки диалогов с сервера + realtime подписка на новые сообщения
   useEffect(() => {
@@ -55,12 +75,39 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
     };
   }, [vertical]);
 
+  // Дедуплицируем лиды по автору — у одного юзера может быть несколько лидов
+  // (нашли его в разных чатах в разные дни). Чат всегда один — по author.
+  // Берём самый свежий лид как представителя.
+  const uniqueLeads = useMemo(() => {
+    const activeId = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('chat')
+      : null;
+    const byAuthor = new Map<string, Lead>();
+    const leadTime = (l: Lead) => {
+      const conv = convMap.get(normalizeUsername(l.author ?? ''));
+      if (conv) return new Date(conv.lastMessageAt).getTime();
+      return l.date ? new Date(l.date).getTime() : 0;
+    };
+    for (const lead of leads) {
+      const key = normalizeUsername(lead.author ?? '') || `__noauthor__${lead.id}`;
+      const cur = byAuthor.get(key);
+      // Активный лид побеждает всегда (чтобы открытый чат не пропал из списка)
+      if (lead.id === activeId) {
+        byAuthor.set(key, lead);
+        continue;
+      }
+      if (cur?.id === activeId) continue;
+      if (!cur || leadTime(lead) > leadTime(cur)) byAuthor.set(key, lead);
+    }
+    return Array.from(byAuthor.values());
+  }, [leads, convMap]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const activeId = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('chat')
       : null;
-    return leads.filter((lead) => {
+    return uniqueLeads.filter((lead) => {
       if (q) {
         const haystack = `${lead.author ?? ''} ${lead.group ?? ''} ${lead.text ?? ''}`.toLowerCase();
         if (!haystack.includes(q)) return false;
@@ -71,7 +118,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
       }
       // Показываем диалоги если:
       //   а) есть переписка в Supabase
-      //   б) на лида назначен менеджер (Александр / Антон)
+      //   б) на лида назначен менеджер
       //   в) этот диалог сейчас открыт через ?chat=<id>
       const key = normalizeUsername(lead.author ?? '');
       const hasMessages = key && convMap.has(key);
@@ -79,7 +126,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
       if (!hasMessages && !hasAssignee && lead.id !== activeId) return false;
       return true;
     });
-  }, [leads, search, getAssignee, managerFilter, convMap]);
+  }, [uniqueLeads, search, getAssignee, managerFilter, convMap]);
 
   // Сортировка: сначала диалоги с самым свежим сообщением
   const sorted = useMemo(() => {
@@ -92,19 +139,18 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
     });
   }, [filtered, convMap]);
 
-  // Общее число диалогов (с сообщениями ИЛИ с назначенным менеджером).
-  // Используется для счётчика «Все N» — не зависит от поиска/фильтра менеджера.
+  // Общее число диалогов (уникальные авторы с сообщениями или менеджером)
   const totalVisible = useMemo(() => {
     const activeId = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('chat')
       : null;
-    return leads.filter((lead) => {
+    return uniqueLeads.filter((lead) => {
       const key = normalizeUsername(lead.author ?? '');
       const hasMessages = key && convMap.has(key);
       const hasAssignee = getAssignee(lead.author ?? '') !== null;
       return hasMessages || hasAssignee || lead.id === activeId;
     }).length;
-  }, [leads, convMap, getAssignee]);
+  }, [uniqueLeads, convMap, getAssignee]);
 
   return (
     <div className="flex flex-col h-full bg-[#0d0d0d]">
@@ -181,16 +227,23 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
           </div>
         )}
         <AnimatePresence initial={false}>
-          {sorted.map((lead, idx) => (
-            <ChatListItem
-              key={lead.id}
-              lead={lead}
-              summary={convMap.get(normalizeUsername(lead.author ?? '')) ?? null}
-              active={lead.id === activeId}
-              onSelect={() => onSelect(lead)}
-              index={idx}
-            />
-          ))}
+          {sorted.map((lead, idx) => {
+            const summary = convMap.get(normalizeUsername(lead.author ?? '')) ?? null;
+            const seen = summary
+              ? isSeenAfter(normalizeUsername(lead.author ?? ''), summary.lastMessageAt)
+              : isSeenAfter(normalizeUsername(lead.author ?? ''), lead.date ?? 0);
+            return (
+              <ChatListItem
+                key={lead.id}
+                lead={lead}
+                summary={summary}
+                seen={seen}
+                active={lead.id === activeId}
+                onSelect={() => handleSelect(lead)}
+                index={idx}
+              />
+            );
+          })}
         </AnimatePresence>
       </div>
     </div>
@@ -198,13 +251,14 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
 }
 
 function ChatListItem({
-  lead, summary, active, onSelect, index,
+  lead, summary, active, onSelect, index, seen,
 }: {
   lead: Lead;
   summary: ConversationSummary | null;
   active: boolean;
   onSelect: () => void;
   index: number;
+  seen: boolean;
 }) {
   const { get: getAssignee } = useAssignees();
   const assignee = getAssignee(lead.author ?? '');
@@ -218,8 +272,11 @@ function ChatListItem({
     ? relativeTime(summary.lastMessageAt)
     : lead.date ? relativeTime(lead.date) : '';
 
-  // Непрочитано: есть входящее как последнее, ИЛИ ни одной переписки ещё нет
-  const unread = !summary || summary.lastDirection === 'in';
+  // Непрочитано если:
+  //   а) последнее сообщение — входящее ИЛИ переписки ещё нет
+  //   б) И модератор не открывал этот чат после последнего сообщения
+  const baseUnread = !summary || summary.lastDirection === 'in';
+  const unread = baseUnread && !seen;
 
   return (
     <motion.button
