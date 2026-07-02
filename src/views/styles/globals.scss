@@ -6,15 +6,17 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Дашборд всегда тёмный — не зависим от системной темы, иначе на iOS
+     Safari при rubber-band скролле сверху вылезает светлый фон body. */
+  --background: #0f0f0f;
+  --foreground: #ededed;
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* html-фон = дашбордный: именно его показывает iOS Safari при overscroll,
+   поэтому «прозрачной/светлой полосы» сверху больше не будет. */
+html {
+  background: #0f0f0f;
 }
 
 /* Hide scrollbar everywhere */

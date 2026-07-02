@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Lead } from '@/entities/Lead';
+import type { ChatContact } from '@/shared/types';
 import { isPinnedHidden, setPinnedHidden } from '@/shared/lib/conversations';
 
 interface PinnedContextProps {
-  lead: Lead;
+  lead: ChatContact;
 }
 
 /**
@@ -96,6 +96,41 @@ export function PinnedContext({ lead }: PinnedContextProps) {
           >
             {expanded ? '↑ свернуть' : '↓ читать полностью'}
           </button>
+        )}
+
+        {/* Атрибуты собеседника: статус, опт/регион, категория, товары */}
+        {(lead.status || lead.category || lead.products || lead.region ||
+          lead.kind === 'seller') && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+            {lead.status && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/[0.06]">
+                {lead.status}
+              </span>
+            )}
+            {lead.kind === 'seller' && (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                lead.wholesale
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+                  : 'bg-white/[0.06] text-gray-400 border-white/[0.06]'}`}>
+                {lead.wholesale ? '📦 Опт' : 'Розница'}
+              </span>
+            )}
+            {lead.kind === 'buyer' && lead.region && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/[0.06]">
+                🌍 {lead.region}
+              </span>
+            )}
+            {lead.category && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-300 border border-white/[0.06]">
+                {lead.category}
+              </span>
+            )}
+            {lead.products && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-400 border border-white/[0.06] max-w-[200px] truncate">
+                {lead.products}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Meta */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Lead } from '@/entities/Lead';
+import type { ChatContact } from '@/shared/types';
 import { avatarGradient, avatarText, relativeTime } from '@/shared/lib/conversations';
 import { getManager, normalizeUsername } from '@/shared/lib/assignees';
 import { useAssignees } from '@/shared/lib/useAssignees';
@@ -12,12 +12,13 @@ import { useVertical } from '@/shared/lib/VerticalContext';
 import { markChatSeen, useChatSeen } from '@/shared/lib/chatSeen';
 
 interface ChatListProps {
-  leads: Lead[];
+  leads: ChatContact[];
   activeId: string | null;
-  onSelect: (lead: Lead) => void;
+  onSelect: (lead: ChatContact) => void;
 }
 
 const POLL_MS = 30000; // запасной поллинг — реалтайм основной источник
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   const vertical = useVertical();
@@ -28,7 +29,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
   const { isSeenAfter } = useChatSeen(vertical);
 
   // При клике на чат: помечаем seen и проксируем выбор наружу
-  const handleSelect = (lead: Lead) => {
+  const handleSelect = (lead: ChatContact) => {
     const username = normalizeUsername(lead.author ?? '');
     if (username) markChatSeen(vertical, username);
     onSelect(lead);
@@ -82,8 +83,8 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
     const activeId = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('chat')
       : null;
-    const byAuthor = new Map<string, Lead>();
-    const leadTime = (l: Lead) => {
+    const byAuthor = new Map<string, ChatContact>();
+    const leadTime = (l: ChatContact) => {
       const conv = convMap.get(normalizeUsername(l.author ?? ''));
       if (conv) return new Date(conv.lastMessageAt).getTime();
       return l.date ? new Date(l.date).getTime() : 0;
@@ -116,14 +117,21 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
         const assignee = getAssignee(lead.author ?? '');
         if (assignee !== managerFilter) return false;
       }
-      // Показываем диалоги если:
-      //   а) есть переписка в Supabase
-      //   б) на лида назначен менеджер
-      //   в) этот диалог сейчас открыт через ?chat=<id>
+      // Показываем диалоги если есть переписка ИЛИ назначен менеджер ИЛИ он открыт
       const key = normalizeUsername(lead.author ?? '');
       const hasMessages = key && convMap.has(key);
       const hasAssignee = getAssignee(lead.author ?? '') !== null;
       if (!hasMessages && !hasAssignee && lead.id !== activeId) return false;
+      // Скрываем ЗАБРОШЕННЫЕ (глобально, при любом фильтре): общение было >недели
+      // назад, либо добавлен >недели назад без переписки. Открытый диалог не прячем.
+      if (lead.id !== activeId) {
+        const now = Date.now();
+        const conv = convMap.get(key);
+        const withinWeek = conv
+          ? now - new Date(conv.lastMessageAt).getTime() <= WEEK_MS
+          : lead.date ? now - new Date(lead.date).getTime() <= WEEK_MS : false;
+        if (!withinWeek) return false;
+      }
       return true;
     });
   }, [uniqueLeads, search, getAssignee, managerFilter, convMap]);
@@ -148,7 +156,13 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
       const key = normalizeUsername(lead.author ?? '');
       const hasMessages = key && convMap.has(key);
       const hasAssignee = getAssignee(lead.author ?? '') !== null;
-      return hasMessages || hasAssignee || lead.id === activeId;
+      if (lead.id === activeId) return true;
+      if (!hasMessages && !hasAssignee) return false;
+      const now = Date.now();
+      const conv = convMap.get(key);
+      return conv
+        ? now - new Date(conv.lastMessageAt).getTime() <= WEEK_MS
+        : lead.date ? now - new Date(lead.date).getTime() <= WEEK_MS : false;
     }).length;
   }, [uniqueLeads, convMap, getAssignee]);
 
@@ -253,7 +267,7 @@ export function ChatList({ leads, activeId, onSelect }: ChatListProps) {
 function ChatListItem({
   lead, summary, active, onSelect, index, seen,
 }: {
-  lead: Lead;
+  lead: ChatContact;
   summary: ConversationSummary | null;
   active: boolean;
   onSelect: () => void;
@@ -293,7 +307,8 @@ function ChatListItem({
                     : 'border-transparent hover:bg-white/[0.025]'}`}
     >
       <div className={`shrink-0 w-11 h-11 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center
-                       text-base font-bold text-white relative`}>
+                       text-base font-bold text-white relative
+                       ${lead.kind === 'seller' ? 'ring-2 ring-amber-500/40' : ''}`}>
         {avatarText(lead.author)}
         {manager && (
           <span
@@ -307,9 +322,15 @@ function ChatListItem({
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className={`text-sm font-medium truncate ${active ? 'text-white' : 'text-gray-200'}`}>
-            @{username || 'unknown'}
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className={`text-sm font-medium truncate ${active ? 'text-white' : 'text-gray-200'}`}>
+              @{username || 'unknown'}
+            </span>
+            <span className={`shrink-0 text-[8px] font-semibold px-1.5 py-px rounded-md leading-[1.35] ${
+              lead.kind === 'seller' ? 'bg-amber-500/15 text-amber-300' : 'bg-sky-500/15 text-sky-300'}`}>
+              {lead.kind === 'seller' ? 'Продавец' : 'Покупатель'}
+            </span>
           </span>
           <span className="text-[10px] text-gray-600 shrink-0">{timeStr}</span>
         </div>

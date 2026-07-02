@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { Lead } from '@/entities/Lead';
+import type { ChatContact } from '@/shared/types';
 import { AssigneePicker } from '@/features/AssigneeMarker';
 import { useAssignees } from '@/shared/lib/useAssignees';
 import {
@@ -20,7 +20,7 @@ import { MessageBubble } from './MessageBubble';
 import { Composer } from './Composer';
 
 interface ChatViewProps {
-  lead: Lead | null;
+  lead: ChatContact | null;
   onBack?: () => void;       // на мобиле — вернуться к списку
 }
 
@@ -169,9 +169,15 @@ export function ChatView({ lead, onBack }: ChatViewProps) {
           ) : (
             <div className="text-sm font-medium text-white truncate">@{username || 'unknown'}</div>
           )}
-          <div className="text-[10px] text-gray-600 flex items-center gap-1.5 mt-0.5 truncate">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-            <span className="truncate">в сети · {lead.group ?? 'без группы'}</span>
+          <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+            <span className={`shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-md leading-none ${
+              lead.kind === 'seller' ? 'bg-amber-500/15 text-amber-300' : 'bg-sky-500/15 text-sky-300'}`}>
+              {lead.kind === 'seller' ? '🏪 Продавец' : '🛒 Покупатель'}
+            </span>
+            <span className="text-[10px] text-gray-600 flex items-center gap-1 min-w-0">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="truncate">{lead.group ?? 'без группы'}</span>
+            </span>
           </div>
         </div>
 

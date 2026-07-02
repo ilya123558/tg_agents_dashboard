@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Lead, LeadStatus } from '@/entities/Lead';
 import { useUpdateLeadStatusMutation } from '@/entities/Lead';
 import { LeadCard } from './LeadCard';
-import { StatusSelect } from './StatusSelect';
-import { AssigneePicker } from '@/features/AssigneeMarker';
 import { useAssignees } from '@/shared/lib/useAssignees';
 import { useConversations } from '@/shared/lib/useConversations';
 
@@ -16,6 +14,7 @@ type AssigneeFilter = 'all' | 'unassigned' | string;
 type RegionFilter = 'all' | string;
 
 const REGION_UNKNOWN = '__no_region__';
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function sortByDate(items: Lead[], dir: SortDir) {
   return [...items].sort((a, b) => {
@@ -38,7 +37,15 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
   const [regionFilter, setRegionFilter] = useState<RegionFilter>('all');
   const [updateStatus] = useUpdateLeadStatusMutation();
   const { get: getAssignee, managers, countBy } = useAssignees();
-  const { hasReplied } = useConversations();
+  const { hasReplied, get: getConv } = useConversations();
+
+  // «Живой» лид для счётчика: переписка ≤ недели ИЛИ добавлен ≤ недели без переписки.
+  const isActiveLead = (l: Lead) => {
+    const conv = getConv(l.author);
+    const now = Date.now();
+    if (conv) return now - new Date(conv.lastMessageAt).getTime() <= WEEK_MS;
+    return l.date ? now - new Date(l.date).getTime() <= WEEK_MS : false;
+  };
 
   // Список уникальных регионов из лидов (для дропдауна)
   const regionOptions = useMemo(() => {
@@ -90,10 +97,12 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
         return hay.includes(q);
       });
     }
-    const c = countBy(list);
-    const unassigned = list.filter((l) => getAssignee(l.author ?? '') == null).length;
-    return { ...c, unassigned, all: list.length } as Record<string, number>;
-  }, [leads, statusFilter, search, countBy, getAssignee]);
+    const active = list.filter(isActiveLead);   // то же недельное правило, что и в шапке
+    const c = countBy(active);
+    const unassigned = active.filter((l) => getAssignee(l.author ?? '') == null).length;
+    return { ...c, unassigned, all: active.length } as Record<string, number>;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leads, statusFilter, search, countBy, getAssignee, getConv]);
 
   return (
     <div className="space-y-3">
@@ -233,140 +242,25 @@ export function LeadsTable({ leads, statusFilter = 'все', onOpenChat }: Leads
         <div className="ml-auto text-[11px] text-gray-600 tabular-nums">{filtered.length} найдено</div>
       </div>
 
-      {/* Mobile: cards */}
-      <div className="md:hidden space-y-2">
-        <AnimatePresence mode="popLayout" initial={false}>
-          {filtered.length === 0 ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center py-12 text-gray-600 text-sm"
-            >
-              Лидов не найдено
-            </motion.div>
-          ) : (
-            filtered.map((lead, i) => (
-              <LeadCard key={lead.id} lead={lead} index={i} onOpenChat={onOpenChat} replied={hasReplied(lead.author)} />
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden md:block bg-[#161616] border border-white/[0.07] rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.06] text-xs text-gray-600 uppercase tracking-wider">
-                <th className="px-3 py-3 font-medium w-8"></th>
-                <th className="text-left px-4 py-3 font-medium">Текст</th>
-                <th className="text-left px-4 py-3 font-medium">Группа</th>
-                <th className="text-left px-4 py-3 font-medium">Регион</th>
-                <th className="text-left px-4 py-3 font-medium">Автор</th>
-                <th className="px-4 py-3 font-medium">
-                  <button
-                    onClick={() => setSort(v => v === 'desc' ? 'asc' : 'desc')}
-                    className="flex items-center gap-1 hover:text-gray-300 transition-colors"
-                  >
-                    Дата
-                    <motion.span
-                      animate={{ rotate: sort === 'asc' ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="inline-block"
-                    >
-                      ↓
-                    </motion.span>
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3 font-medium">Комментарий AI</th>
-                <th className="text-left px-4 py-3 font-medium">Статус</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-600">Лидов не найдено</td>
-                </tr>
-              )}
-              {filtered.map((lead, rowIdx) => {
-                const replied = hasReplied(lead.author);
-                return (
-                <motion.tr
-                  key={lead.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: rowIdx * 0.03, ease: 'easeOut' }}
-                  onClick={() => onOpenChat?.(lead)}
-                  className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors
-                              ${onOpenChat ? 'cursor-pointer' : ''}
-                              ${replied ? 'bg-emerald-500/[0.025]' : ''}`}
-                >
-                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                    <AssigneePicker author={lead.author} size="md" />
-                  </td>
-                  <td className="px-4 py-3 max-w-xs">
-                    <div className="text-gray-300 line-clamp-2 text-xs leading-relaxed">{lead.text || '—'}</div>
-                    {lead.link && (
-                      <a href={lead.link} target="_blank" rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-blue-500 hover:text-blue-400 text-xs mt-1 inline-block">→ сообщение</a>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-gray-500 text-xs">{lead.group || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {lead.region ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 text-[11px] font-medium border border-sky-500/15">
-                        <span className="text-[10px] opacity-70">📍</span>
-                        {lead.region}
-                      </span>
-                    ) : (
-                      <span className="text-gray-700 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      {lead.author
-                        ? <a href={lead.author} target="_blank" rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-blue-400 hover:text-blue-300 text-xs">
-                            {lead.author.replace('https://t.me/', '@')}
-                          </a>
-                        : <span className="text-gray-700 text-xs">—</span>}
-                      {replied && (
-                        <span title="Ответил в личке" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[9px] font-semibold">
-                          <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                          ответил
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="text-gray-600 text-xs">
-                      {lead.date ? new Date(lead.date).toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-                      }) : '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 max-w-[200px]">
-                    <span className="text-gray-500 text-xs line-clamp-2">{lead.comment || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <StatusSelect
-                      value={lead.status as LeadStatus}
-                      onChange={(status) => updateStatus({ id: lead.id, status })}
-                    />
-                  </td>
-                </motion.tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Карточки — адаптивная сетка (1 / 2 / 3 колонки) на всех экранах */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-gray-600 text-sm">Лидов не найдено</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+          <AnimatePresence mode="popLayout" initial={false}>
+            {filtered.map((lead, i) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                index={Math.min(i, 10)}
+                onOpenChat={onOpenChat}
+                replied={hasReplied(lead.author)}
+                onStatusChange={(status) => updateStatus({ id: lead.id, status })}
+              />
+            ))}
+          </AnimatePresence>
         </div>
-      </div>
+      )}
     </div>
   );
 }

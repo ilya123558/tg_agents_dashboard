@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Seller, SellerStatus } from '@/entities/Seller';
+import type { Seller } from '@/entities/Seller';
 import { useUpdateSellerStatusMutation } from '@/entities/Seller';
 import { SellerStatusSelect } from './SellerStatusSelect';
 import { AssigneePicker } from '@/features/AssigneeMarker';
 
 type FilterType = 'все' | 'новый' | 'оптовики';
 const FILTERS: FilterType[] = ['все', 'новый', 'оптовики'];
-const LONG_TEXT = 120;
 type SortDir = 'desc' | 'asc';
 
 function sortByDate(items: Seller[], dir: SortDir) {
@@ -31,13 +30,8 @@ function WholesaleBadge({ wholesale }: { wholesale: boolean }) {
 }
 
 function SellerCard({ seller, index = 0, onOpenChat }: { seller: Seller; index?: number; onOpenChat?: (s: Seller) => void }) {
-  const [expanded, setExpanded] = useState(false);
   const [updateStatus] = useUpdateSellerStatusMutation();
-  const isLong = (seller.text?.length ?? 0) > LONG_TEXT;
-  const cardClass = `bg-[#161616] border border-white/[0.07] rounded-2xl p-4 space-y-3
-                     hover:border-white/[0.13] hover:bg-[#1a1a1a] transition-colors duration-200
-                     ${onOpenChat ? 'cursor-pointer' : ''}`;
-
+  const username = seller.author ? seller.author.replace(/^https?:\/\/t\.me\//i, '@').replace(/^@?/, '@') : null;
   const dateStr = seller.date
     ? new Date(seller.date).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
     : null;
@@ -47,80 +41,76 @@ function SellerCard({ seller, index = 0, onOpenChat }: { seller: Seller; index?:
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: index * 0.04, ease: 'easeOut' }}
+      whileHover={{ y: -3 }}
       onClick={() => onOpenChat?.(seller)}
-      className={cardClass}
+      className={`group relative flex flex-col h-[300px] overflow-hidden rounded-2xl border border-white/[0.07]
+                  bg-[#161616] transition-all duration-200 hover:border-white/20 hover:bg-[#1a1a1a]
+                  hover:shadow-[0_10px_40px_rgba(0,0,0,0.5)] ${onOpenChat ? 'cursor-pointer' : ''}`}
     >
-      {/* Top: marker + wholesale badge + date */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0" onClick={(e) => e.stopPropagation()}>
-          <AssigneePicker author={seller.author} size="md" />
-          {seller.wholesale ? (
-            <WholesaleBadge wholesale={seller.wholesale} />
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full
-                             bg-orange-500/10 text-orange-400 border border-orange-500/20 shrink-0">
-              🏪 Продавец
-            </span>
-          )}
-        </div>
-        {dateStr && <span className="text-[11px] text-gray-600 shrink-0">{dateStr}</span>}
-      </div>
-
-      {/* Text with expand */}
-      <div>
-        <AnimatePresence initial={false}>
-          {expanded ? (
-            <motion.p key="full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }} className="text-sm text-gray-200 leading-relaxed">
-              {seller.text || '—'}
-            </motion.p>
-          ) : (
-            <motion.p key="short" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }} className="text-sm text-gray-200 leading-relaxed line-clamp-2">
-              {seller.text || '—'}
-            </motion.p>
-          )}
-        </AnimatePresence>
-        {isLong && (
-          <button onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
-            className="mt-1 text-[11px] text-gray-600 hover:text-gray-400 transition-colors">
-            {expanded ? '↑ свернуть' : '↓ читать полностью'}
-          </button>
+      {/* Header: менеджер + статус + опт/продавец + дата */}
+      <div className="flex items-center gap-2 px-4 pt-3.5 pb-2.5" onClick={(e) => e.stopPropagation()}>
+        <AssigneePicker author={seller.author} size="md" />
+        <SellerStatusSelect value={seller.status} onChange={(status) => updateStatus({ id: seller.id, status })} />
+        {seller.wholesale ? (
+          <WholesaleBadge wholesale={seller.wholesale} />
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full
+                           bg-orange-500/10 text-orange-400 border border-orange-500/20 shrink-0">
+            🏪 Продавец
+          </span>
         )}
+        {dateStr && <span className="ml-auto text-[11px] text-gray-600 shrink-0 tabular-nums">{dateStr}</span>}
       </div>
 
-      {/* AI comment */}
-      {seller.comment && (
-        <div className="flex gap-2 bg-white/[0.04] rounded-xl px-3 py-2.5 border border-white/[0.04]">
-          <span className="text-xs shrink-0 mt-px">🤖</span>
-          <p className="text-[11px] text-gray-400 leading-relaxed">{seller.comment}</p>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="pt-1 border-t border-white/[0.05] flex flex-wrap items-center gap-x-3 gap-y-2"
-           onClick={(e) => e.stopPropagation()}>
-        {seller.author && (
-          <a href={seller.author} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
-            {seller.author.replace('https://t.me/', '@')}
+      {/* Автор */}
+      <div className="px-4 pb-2 min-w-0">
+        {username ? (
+          <a
+            href={seller.author ?? '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-sm font-semibold text-white hover:text-blue-300 transition-colors truncate block"
+          >
+            {username}
           </a>
+        ) : (
+          <span className="text-sm font-semibold text-gray-500">без автора</span>
         )}
-        {seller.group && (
-          <span className="text-[11px] text-gray-600 truncate max-w-[160px]">{seller.group}</span>
+      </div>
+
+      {/* Тело: текст + AI-комментарий */}
+      <div className="flex-1 min-h-0 overflow-hidden px-4">
+        <p className="text-[13px] text-gray-200 leading-relaxed line-clamp-3">{seller.text || '—'}</p>
+        {seller.comment && (
+          <div className="mt-2.5 flex gap-2 rounded-xl border border-white/[0.05] bg-white/[0.035] px-3 py-2">
+            <span className="shrink-0 text-xs mt-px">🤖</span>
+            <p className="text-[11px] text-gray-400 leading-relaxed line-clamp-2">{seller.comment}</p>
+          </div>
         )}
-        {seller.link && (
-          <a href={seller.link} target="_blank" rel="noopener noreferrer"
-            className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors whitespace-nowrap">
+      </div>
+
+      {/* Footer: группа + CTA */}
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+        <span className="min-w-0 flex-1 truncate text-[11px] text-gray-500">{seller.group || '—'}</span>
+        {onOpenChat ? (
+          <span className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-blue-400 transition-colors group-hover:text-blue-300">
+            Открыть чат
+            <svg className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </span>
+        ) : seller.link ? (
+          <a
+            href={seller.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 text-[11px] text-gray-500 transition-colors hover:text-gray-300"
+          >
             → сообщение
           </a>
-        )}
-        <div className="ml-auto">
-          <SellerStatusSelect
-            value={seller.status}
-            onChange={(status) => updateStatus({ id: seller.id, status })}
-          />
-        </div>
+        ) : null}
       </div>
     </motion.div>
   );
@@ -129,7 +119,6 @@ function SellerCard({ seller, index = 0, onOpenChat }: { seller: Seller; index?:
 export function SellersTable({ sellers, onOpenChat }: { sellers: Seller[]; onOpenChat?: (s: Seller) => void }) {
   const [filter, setFilter] = useState<FilterType>('все');
   const [sort, setSort] = useState<SortDir>('desc');
-  const [updateStatus] = useUpdateSellerStatusMutation();
 
   function filterCount(f: FilterType): number {
     if (f === 'все') return sellers.length;
@@ -177,103 +166,16 @@ export function SellersTable({ sellers, onOpenChat }: { sellers: Seller[]; onOpe
         </motion.button>
       </div>
 
-      {/* Mobile: cards */}
-      <div className="md:hidden space-y-2">
-        {filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-600 text-sm">Продавцов не найдено</div>
-        ) : (
-          filtered.map((seller, i) => <SellerCard key={seller.id} seller={seller} index={i} onOpenChat={onOpenChat} />)
-        )}
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden md:block bg-[#161616] border border-white/[0.07] rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.06] text-xs text-gray-600 uppercase tracking-wider">
-                <th className="px-3 py-3 font-medium w-8"></th>
-                <th className="text-left px-4 py-3 font-medium">Текст</th>
-                <th className="text-left px-4 py-3 font-medium">Оптовик</th>
-                <th className="text-left px-4 py-3 font-medium">Группа</th>
-                <th className="text-left px-4 py-3 font-medium">Автор</th>
-                <th className="px-4 py-3 font-medium">
-                  <button onClick={() => setSort(v => v === 'desc' ? 'asc' : 'desc')}
-                    className="flex items-center gap-1 hover:text-gray-300 transition-colors">
-                    Дата
-                    <motion.span animate={{ rotate: sort === 'asc' ? 180 : 0 }} transition={{ duration: 0.2 }} className="inline-block">↓</motion.span>
-                  </button>
-                </th>
-                <th className="text-left px-4 py-3 font-medium">Комментарий AI</th>
-                <th className="text-left px-4 py-3 font-medium">Статус</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-600">Продавцов не найдено</td>
-                </tr>
-              )}
-              {filtered.map((seller) => (
-                <tr key={seller.id}
-                    onClick={() => onOpenChat?.(seller)}
-                    className={`border-b border-white/[0.04] hover:bg-white/[0.03] transition-colors
-                                ${onOpenChat ? 'cursor-pointer' : ''}`}>
-                  <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                    <AssigneePicker author={seller.author} size="md" />
-                  </td>
-                  <td className="px-4 py-3 max-w-xs">
-                    <div className="text-gray-300 line-clamp-2 text-xs leading-relaxed">{seller.text || '—'}</div>
-                    {seller.link && (
-                      <a href={seller.link} target="_blank" rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-blue-500 hover:text-blue-400 text-xs mt-1 inline-block">→ сообщение</a>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {seller.wholesale ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full
-                                       bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                        🏭 Да
-                      </span>
-                    ) : (
-                      <span className="text-gray-700 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-gray-500 text-xs">{seller.group || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {seller.author ? (
-                      <a href={seller.author} target="_blank" rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-blue-400 hover:text-blue-300 text-xs">
-                        {seller.author.replace('https://t.me/', '@')}
-                      </a>
-                    ) : <span className="text-gray-700 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="text-gray-600 text-xs">
-                      {seller.date ? new Date(seller.date).toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-                      }) : '—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 max-w-[200px]">
-                    <span className="text-gray-500 text-xs line-clamp-2">{seller.comment || '—'}</span>
-                  </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <SellerStatusSelect
-                      value={seller.status}
-                      onChange={(status) => updateStatus({ id: seller.id, status })}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Карточки — адаптивная сетка (1 / 2 / 3 колонки) на всех экранах */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 text-gray-600 text-sm">Продавцов не найдено</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+          {filtered.map((seller, i) => (
+            <SellerCard key={seller.id} seller={seller} index={Math.min(i, 10)} onOpenChat={onOpenChat} />
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
