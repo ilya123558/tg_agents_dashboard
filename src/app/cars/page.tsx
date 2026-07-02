@@ -9,6 +9,8 @@ import { StatsPanel, type LeadFilter } from '@/widgets/StatsPanel';
 import { LeadsTable } from '@/widgets/LeadsTable';
 import { GroupsStats } from '@/widgets/GroupsStats';
 import { useAssignees } from '@/shared/lib/useAssignees';
+import { useManagerStats } from '@/shared/lib/useManagerStats';
+import { ManagerInitials } from '@/shared/ui/managerInitials/ManagerInitials';
 import { ScrollToTop } from '@/features/ScrollToTop';
 import type { Lead } from '@/entities/Lead';
 
@@ -58,8 +60,8 @@ export default function CarsPage() {
   );
 
   const router = useRouter();
-  const { countBy, managers } = useAssignees();
-  const counts = useMemo(() => countBy(filteredLeads), [filteredLeads, countBy]);
+  const { managers } = useAssignees();
+  const { counts, unread } = useManagerStats(filteredLeads, 'cars');
 
   const openLeadChat = useCallback((lead: Lead) => {
     router.push(`/cars/messages?chat=${lead.id}`);
@@ -149,9 +151,7 @@ export default function CarsPage() {
                 title={`${m.name}: ${count}`}
                 className={`flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full border border-white/[0.06] ${m.meta.soft}`}
               >
-                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${m.meta.bg}`}>
-                  {m.initials}
-                </span>
+                <ManagerInitials manager={m} unread={unread[m.id]} />
                 <span className="text-[11px] text-gray-400">{m.name}</span>
                 <span className={`text-[11px] font-semibold tabular-nums ${m.meta.text}`}>{count}</span>
               </div>
@@ -194,9 +194,7 @@ export default function CarsPage() {
               key={m.id}
               className={`flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full border border-white/[0.06] ${m.meta.soft}`}
             >
-              <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white ${m.meta.bg}`}>
-                {m.initials}
-              </span>
+              <ManagerInitials manager={m} unread={unread[m.id]} />
               <span className="text-[11px] text-gray-400">{m.name}</span>
               <span className={`text-[11px] font-semibold tabular-nums ${m.meta.text}`}>{count}</span>
             </div>
